@@ -3,686 +3,449 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>模考練習系統</title>
+<title>Ivy 模考衝刺 PLUS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ===== RESET & VARIABLES ===== */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --navy:   #0f1e3c;
-  --navy2:  #1a3160;
-  --gold:   #c8a84b;
-  --gold2:  #e8c96b;
-  --cream:  #faf8f3;
-  --paper:  #f4f1ea;
-  --ink:    #1a1a2e;
-  --gray:   #6b7280;
-  --lgray:  #e5e2da;
-  --green:  #2d6a4f;
-  --red:    #9b1c1c;
-  --radius: 10px;
-  --shadow: 0 4px 24px rgba(15,30,60,0.10);
-  --shadow-lg: 0 12px 48px rgba(15,30,60,0.18);
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F5F6F8;
+  --card:#FFFFFF;
+  --primary:#6C63FF;
+  --primary-light:#EAE9FF;
+  --primary-dark:#5A52D5;
+  --accent:#FFD93D;
+  --accent-dark:#F0C800;
+  --emphasis:#FF6B6B;
+  --success:#6BCB77;
+  --success-light:#E8F8EA;
+  --text:#1A1A1A;
+  --text-2:#6B7280;
+  --border:#E5E7EB;
+  --shadow:0 2px 12px rgba(108,99,255,0.08);
+  --shadow-md:0 4px 20px rgba(108,99,255,0.12);
+  --shadow-lg:0 8px 40px rgba(108,99,255,0.16);
+  --r:20px;
+  --r-sm:12px;
 }
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.7}
 
-html { scroll-behavior: smooth; }
-
-body {
-  font-family: 'Noto Sans TC', sans-serif;
-  background: var(--cream);
-  color: var(--ink);
-  min-height: 100vh;
-  line-height: 1.7;
+/* ===== LOADING OVERLAY ===== */
+#loading-overlay{
+  position:fixed;inset:0;background:rgba(245,246,248,0.92);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;gap:20px;backdrop-filter:blur(4px);
 }
+#loading-overlay.hidden{display:none}
+.ov-spinner{
+  width:52px;height:52px;
+  border:5px solid var(--primary-light);
+  border-top-color:var(--primary);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+.ov-text{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.1rem;color:var(--primary)}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-/* ===== LAYOUT ===== */
-.view { display: none; min-height: 100vh; }
-.view.active { display: flex; flex-direction: column; }
+/* ===== VIEWS ===== */
+.view{display:none;min-height:100vh}
+.view.active{display:block}
 
 /* ===== TOPBAR ===== */
-.topbar {
-  background: var(--navy);
-  color: white;
-  padding: 14px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+.topbar{
+  background:var(--card);
+  border-bottom:2px solid var(--border);
+  padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  box-shadow:var(--shadow);
 }
-.topbar-logo {
-  font-family: 'DM Serif Display', serif;
-  font-size: 1.25rem;
-  letter-spacing: 0.03em;
-  color: var(--gold);
+.topbar-logo{
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:1.3rem;color:var(--primary);
+  display:flex;align-items:center;gap:8px;
 }
-.topbar-logo span { color: white; }
-.topbar-user {
-  font-size: 0.82rem;
-  color: rgba(255,255,255,0.7);
-  display: flex; align-items: center; gap: 10px;
+.topbar-logo .logo-plus{
+  background:var(--accent);color:var(--text);
+  font-size:.7rem;padding:2px 8px;border-radius:99px;
+  font-weight:900;letter-spacing:.04em;
 }
-.btn-logout {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 5px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.2s;
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-email{font-size:.82rem;color:var(--text-2)}
+.btn-ghost{
+  background:var(--bg);border:2px solid var(--border);color:var(--text-2);
+  padding:6px 16px;border-radius:99px;cursor:pointer;
+  font-size:.82rem;font-weight:700;font-family:'Nunito',sans-serif;
+  transition:all .2s;
 }
-.btn-logout:hover { background: rgba(255,255,255,0.22); }
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
 
 /* ===== LOGIN VIEW ===== */
-#view-login {
-  background: var(--navy);
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
+#view-login{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#EAE9FF 0%,#F5F6F8 50%,#FFF9E6 100%);
+  position:relative;overflow:hidden;
 }
-.login-bg {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 30% 50%, #1a3160 0%, #0f1e3c 60%);
+#view-login::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle at 20% 20%,rgba(108,99,255,.08) 0%,transparent 50%),
+    radial-gradient(circle at 80% 80%,rgba(255,217,61,.12) 0%,transparent 50%);
 }
-.login-bg::before {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(200,168,75,0.04) 60px, rgba(200,168,75,0.04) 61px),
-    repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(200,168,75,0.04) 60px, rgba(200,168,75,0.04) 61px);
+.login-card{
+  position:relative;z-index:2;
+  background:var(--card);
+  border-radius:28px;
+  padding:56px 52px;
+  max-width:440px;width:90%;
+  text-align:center;
+  box-shadow:var(--shadow-lg);
+  animation:fadeUp .5s ease both;
 }
-.login-card {
-  position: relative; z-index: 2;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(200,168,75,0.25);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 56px 52px;
-  max-width: 440px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
-  animation: fadeUp 0.6s ease both;
+.login-emoji{font-size:3.5rem;margin-bottom:16px;display:block}
+.login-title{
+  font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:2rem;color:var(--text);margin-bottom:4px;
 }
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.login-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 2.4rem;
-  color: var(--gold);
-  line-height: 1.2;
-  margin-bottom: 8px;
-}
-.login-subtitle {
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.55);
-  margin-bottom: 40px;
-  letter-spacing: 0.06em;
-}
-.divider {
-  border: none;
-  border-top: 1px solid rgba(200,168,75,0.2);
-  margin: 32px 0;
-}
-.login-note {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.35);
-  margin-top: 24px;
-}
-
-/* Google Sign-In button container */
-#g_id_onload, .g_id_signin { display: flex; justify-content: center; }
+.login-title span{color:var(--primary)}
+.login-subtitle{font-size:.88rem;color:var(--text-2);margin-bottom:36px}
+.login-divider{border:none;border-top:2px solid var(--border);margin:28px 0}
+.login-note{font-size:.78rem;color:var(--text-2);margin-top:20px}
+.g_id_signin{display:flex;justify-content:center}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
 /* ===== ACTIVATE VIEW ===== */
-#view-activate .container {
-  max-width: 520px;
-  margin: 80px auto;
-  padding: 0 24px;
-  animation: fadeUp 0.4s ease both;
+#view-activate{background:var(--bg)}
+.activate-wrap{max-width:500px;margin:64px auto;padding:0 24px;animation:fadeUp .4s ease both}
+.card{background:var(--card);border-radius:var(--r);padding:40px;box-shadow:var(--shadow-md)}
+.card-icon{font-size:2.5rem;margin-bottom:16px}
+.card h2{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.6rem;color:var(--text);margin-bottom:8px}
+.card p{font-size:.9rem;color:var(--text-2);margin-bottom:28px}
+.form-label{display:block;font-weight:700;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);margin-bottom:8px}
+.form-input{
+  width:100%;padding:14px 18px;
+  border:2px solid var(--border);border-radius:var(--r-sm);
+  font-size:1rem;font-family:monospace;color:var(--text);
+  background:var(--bg);letter-spacing:.12em;
+  transition:border-color .2s,background .2s;
 }
-.activate-card {
-  background: white;
-  border-radius: 16px;
-  padding: 48px;
-  box-shadow: var(--shadow-lg);
-  border-top: 4px solid var(--gold);
+.form-input:focus{outline:none;border-color:var(--primary);background:#fff}
+.btn-primary{
+  width:100%;padding:15px;margin-top:12px;
+  background:var(--primary);color:#fff;border:none;border-radius:var(--r-sm);
+  font-size:1rem;font-weight:900;font-family:'Nunito',sans-serif;
+  cursor:pointer;transition:all .2s;letter-spacing:.03em;
 }
-.activate-card h2 {
-  font-family: 'DM Serif Display', serif;
-  font-size: 1.8rem;
-  color: var(--navy);
-  margin-bottom: 8px;
-}
-.activate-card p { color: var(--gray); margin-bottom: 32px; font-size: 0.92rem; }
-
-.form-group { margin-bottom: 20px; }
-.form-group label {
-  display: block;
-  font-weight: 700;
-  font-size: 0.82rem;
-  letter-spacing: 0.06em;
-  color: var(--navy);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-.form-group input {
-  width: 100%;
-  padding: 14px 18px;
-  border: 2px solid var(--lgray);
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--ink);
-  background: var(--cream);
-  transition: border-color 0.2s;
-  letter-spacing: 0.1em;
-}
-.form-group input:focus {
-  outline: none;
-  border-color: var(--gold);
-  background: white;
-}
-
-.btn-primary {
-  width: 100%;
-  padding: 15px;
-  background: var(--navy);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 8px;
-}
-.btn-primary:hover { background: var(--navy2); transform: translateY(-1px); box-shadow: var(--shadow); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-.msg-error {
-  background: #fef2f2; border: 1px solid #fca5a5; color: var(--red);
-  padding: 12px 16px; border-radius: 8px; font-size: 0.88rem; margin-top: 16px;
-}
-.msg-success {
-  background: #ecfdf5; border: 1px solid #6ee7b7; color: var(--green);
-  padding: 12px 16px; border-radius: 8px; font-size: 0.88rem; margin-top: 16px;
-}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.msg-error{background:#FFF1F1;border:2px solid #FFBDBD;color:#C0392B;padding:12px 16px;border-radius:var(--r-sm);font-size:.88rem;margin-top:14px}
+.msg-success{background:var(--success-light);border:2px solid #A8E6AE;color:#276B31;padding:12px 16px;border-radius:var(--r-sm);font-size:.88rem;margin-top:14px}
 
 /* ===== TESTS VIEW ===== */
-#view-tests { background: var(--paper); }
-#view-tests .container { max-width: 860px; margin: 0 auto; padding: 48px 24px; flex: 1; }
-.tests-header { margin-bottom: 40px; }
-.tests-header h2 {
-  font-family: 'DM Serif Display', serif;
-  font-size: 2rem;
-  color: var(--navy);
+#view-tests{background:var(--bg)}
+.tests-inner{max-width:900px;margin:0 auto;padding:36px 24px 60px}
+.tabs{display:flex;gap:8px;margin-bottom:28px}
+.tab-btn{
+  padding:10px 24px;border-radius:99px;border:2px solid var(--border);
+  background:var(--card);font-weight:700;font-size:.9rem;cursor:pointer;
+  font-family:'Nunito',sans-serif;color:var(--text-2);transition:all .2s;
 }
-.tests-header p { color: var(--gray); margin-top: 6px; }
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.section-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;color:var(--text);margin-bottom:6px}
+.section-sub{font-size:.88rem;color:var(--text-2);margin-bottom:24px}
+.test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.test-card{
+  background:var(--card);border-radius:var(--r);padding:26px;
+  cursor:pointer;border:2px solid transparent;
+  box-shadow:var(--shadow);transition:all .25s;position:relative;overflow:hidden;
+}
+.test-card:hover{border-color:var(--primary);transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.test-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--primary-light);color:var(--primary);
+  font-size:.72rem;font-weight:800;font-family:'Nunito',sans-serif;
+  letter-spacing:.06em;padding:4px 12px;border-radius:99px;
+  margin-bottom:14px;text-transform:uppercase;
+}
+.test-card h3{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.05rem;color:var(--text);margin-bottom:4px}
+.test-card .test-id{font-size:.8rem;color:var(--text-2);margin-bottom:12px}
+.attempted-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--success-light);color:var(--success);
+  font-size:.75rem;font-weight:700;font-family:'Nunito',sans-serif;
+  padding:4px 10px;border-radius:99px;
+}
+.test-arrow{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:1.3rem;color:var(--border);transition:all .2s}
+.test-card:hover .test-arrow{color:var(--primary);transform:translateY(-50%) translateX(4px)}
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px;color:var(--text-2)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
 
-.test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-.test-card {
-  background: white;
-  border-radius: 14px;
-  padding: 28px;
-  cursor: pointer;
-  border: 2px solid transparent;
-  box-shadow: var(--shadow);
-  transition: all 0.25s;
-  position: relative;
-  overflow: hidden;
+/* History */
+.history-list{display:flex;flex-direction:column;gap:14px}
+.history-card{background:var(--card);border-radius:var(--r);padding:24px;box-shadow:var(--shadow)}
+.history-card-top{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.history-test-name{font-weight:800;font-family:'Nunito',sans-serif;font-size:1rem;color:var(--text)}
+.history-meta{font-size:.82rem;color:var(--text-2);margin-top:3px}
+.history-score-chip{
+  display:flex;flex-direction:column;align-items:center;
+  background:var(--primary-light);color:var(--primary);
+  border-radius:var(--r-sm);padding:8px 18px;min-width:80px;text-align:center;
 }
-.test-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: var(--gold);
-  transform: scaleY(0);
-  transition: transform 0.2s;
-  transform-origin: bottom;
+.history-score-num{font-family:'Nunito',sans-serif;font-weight:900;font-size:1.4rem;line-height:1}
+.history-score-total{font-size:.72rem;font-weight:700}
+.history-review{display:none;margin-top:18px;border-top:2px solid var(--border);padding-top:18px}
+.history-review.open{display:block}
+.review-grid{display:flex;flex-direction:column;gap:8px}
+.review-row{
+  padding:12px 16px;border-radius:var(--r-sm);font-size:.88rem;
+  border-left:4px solid var(--border);background:var(--bg);
 }
-.test-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
-.test-card:hover::before { transform: scaleY(1); }
-.test-badge {
-  display: inline-block;
-  background: var(--navy);
-  color: var(--gold);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 20px;
-  margin-bottom: 14px;
-  text-transform: uppercase;
-}
-.test-card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--navy);
-  margin-bottom: 6px;
-}
-.test-card .test-meta { font-size: 0.82rem; color: var(--gray); }
-.test-arrow {
-  position: absolute; right: 20px; bottom: 20px;
-  font-size: 1.4rem; color: var(--lgray);
-  transition: all 0.2s;
-}
-.test-card:hover .test-arrow { color: var(--gold); transform: translateX(4px); }
-
-.loading-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; padding: 80px; color: var(--gray);
-}
-.spinner {
-  width: 36px; height: 36px;
-  border: 3px solid var(--lgray);
-  border-top-color: var(--navy);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+.review-row.correct{border-color:var(--success);background:var(--success-light)}
+.review-row.wrong{border-color:var(--emphasis);background:#FFF1F1}
+.review-row.skipped{border-color:var(--accent);background:#FFFDF0}
+.rr-q{color:var(--text-2);font-size:.8rem;margin-bottom:4px}
+.rr-ans{font-weight:700}
+.rr-correct{color:var(--success)}
+.rr-wrong{color:var(--emphasis)}
+.rr-correct-hint{font-size:.82rem;color:var(--success);margin-top:3px}
 
 /* ===== QUIZ VIEW ===== */
-#view-quiz { background: var(--paper); }
-.quiz-topbar {
-  background: white;
-  border-bottom: 1px solid var(--lgray);
-  padding: 16px 32px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 50;
+#view-quiz{background:var(--bg)}
+.quiz-topbar{
+  background:var(--card);border-bottom:2px solid var(--border);
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);
 }
-.quiz-title { font-weight: 700; font-size: 1rem; color: var(--navy); }
-.quiz-meta { font-size: 0.82rem; color: var(--gray); margin-top: 2px; }
-.quiz-progress {
-  display: flex; align-items: center; gap: 12px;
-}
-.progress-bar-wrap {
-  width: 160px; height: 6px;
-  background: var(--lgray); border-radius: 99px;
-}
-.progress-bar-fill {
-  height: 100%; background: var(--gold); border-radius: 99px;
-  transition: width 0.3s ease;
-}
-.progress-txt { font-size: 0.78rem; color: var(--gray); white-space: nowrap; }
-
-.quiz-body { max-width: 820px; margin: 0 auto; padding: 40px 24px 120px; }
+.quiz-info .quiz-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:var(--text)}
+.quiz-info .quiz-sub{font-size:.78rem;color:var(--text-2)}
+.quiz-prog{display:flex;align-items:center;gap:12px}
+.prog-bar-wrap{width:140px;height:8px;background:var(--border);border-radius:99px;overflow:hidden}
+.prog-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),#9C8CFF);border-radius:99px;transition:width .3s ease}
+.prog-txt{font-size:.8rem;font-weight:700;font-family:'Nunito',sans-serif;color:var(--primary);white-space:nowrap}
+.quiz-body{max-width:820px;margin:0 auto;padding:32px 24px 120px}
 
 /* Section block */
-.section-block {
-  background: white;
-  border-radius: 14px;
-  margin-bottom: 32px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
+.section-block{background:var(--card);border-radius:var(--r);margin-bottom:24px;box-shadow:var(--shadow);overflow:hidden}
+.section-header{
+  background:linear-gradient(135deg,var(--primary) 0%,#9C8CFF 100%);
+  padding:16px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
 }
-.section-header {
-  background: var(--navy);
-  color: white;
-  padding: 16px 28px;
-  display: flex; align-items: center; gap: 14px;
+.type-badge{
+  background:rgba(255,255,255,.2);color:#fff;
+  font-size:.72rem;font-weight:800;font-family:'Nunito',sans-serif;
+  letter-spacing:.06em;padding:4px 12px;border-radius:99px;text-transform:uppercase;
 }
-.section-type-badge {
-  background: var(--gold);
-  color: var(--navy);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 4px 10px;
-  border-radius: 20px;
-  white-space: nowrap;
+.section-label{font-size:.85rem;color:rgba(255,255,255,.85);flex:1}
+.section-range{
+  background:var(--accent);color:var(--text);
+  font-size:.78rem;font-weight:900;font-family:'Nunito',sans-serif;
+  padding:4px 12px;border-radius:99px;margin-left:auto;
 }
-.section-label { font-size: 0.9rem; color: rgba(255,255,255,0.8); }
-.section-range { margin-left: auto; font-size: 0.82rem; color: var(--gold); font-family: 'JetBrains Mono', monospace; }
+.section-passage{padding:22px 26px;font-size:.96rem;line-height:2.1;color:var(--text);border-bottom:2px solid var(--border);white-space:pre-wrap}
+.section-image{padding:18px 26px 0}
+.section-image img{max-width:100%;border-radius:var(--r-sm);border:2px solid var(--border)}
 
-.section-passage {
-  padding: 24px 28px;
-  font-size: 0.96rem;
-  line-height: 2;
-  color: #333;
-  border-bottom: 1px solid var(--lgray);
-  white-space: pre-wrap;
-}
-.section-image {
-  padding: 16px 28px 0;
-}
-.section-image img {
-  max-width: 100%; border-radius: 8px;
-  border: 1px solid var(--lgray);
-}
+/* Wordbank */
+.wordbank{margin:16px 24px;padding:16px;background:var(--bg);border-radius:var(--r-sm);border:2px solid var(--border)}
+.wb-title{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;font-family:'Nunito',sans-serif}
+.wb-items{display:flex;flex-wrap:wrap;gap:8px}
+.wb-item{background:var(--card);border:2px solid var(--border);border-radius:8px;padding:5px 14px;font-size:.88rem}
+.wb-item b{color:var(--primary);font-family:'Nunito',sans-serif;margin-right:4px}
 
-/* Word bank (type 3) */
-.wordbank {
-  margin: 16px 28px;
-  padding: 16px;
-  background: var(--cream);
-  border-radius: 8px;
-  border: 1px solid var(--lgray);
+/* Inline blank elements */
+.blank-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;background:var(--accent);color:var(--text);
+  border-radius:50%;font-size:.72rem;font-weight:900;font-family:'Nunito',sans-serif;
+  margin:0 3px;vertical-align:middle;
 }
-.wordbank-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--gray);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+.blank-select{
+  padding:5px 10px;border:2px solid var(--primary-light);border-radius:8px;
+  background:#fff;font-size:.86rem;color:var(--text);cursor:pointer;
+  margin:0 3px;min-width:120px;font-family:'Noto Sans TC',sans-serif;
 }
-.wordbank-items {
-  display: flex; flex-wrap: wrap; gap: 8px;
+.blank-select:focus{outline:none;border-color:var(--primary)}
+.blank-input{
+  padding:5px 12px;border:2px solid var(--primary-light);border-radius:8px;
+  background:#fff;font-size:.9rem;color:var(--text);width:160px;margin:0 3px;
+  font-family:'Noto Sans TC',sans-serif;
 }
-.wordbank-item {
-  background: white;
-  border: 1px solid var(--lgray);
-  border-radius: 6px;
-  padding: 4px 12px;
-  font-size: 0.88rem;
-}
-.wordbank-item b { color: var(--navy); font-family: 'JetBrains Mono', monospace; }
+.blank-input:focus{outline:none;border-color:var(--primary)}
 
 /* Questions */
-.questions-list { padding: 8px 0; }
+.questions-list{padding:4px 0}
+.question-item{padding:20px 26px;border-bottom:2px solid var(--bg);transition:background .15s}
+.question-item:last-child{border-bottom:none}
+.question-item.answered{background:#FAFBFF}
+.q-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
+.q-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:30px;min-width:30px;
+  background:var(--primary-light);color:var(--primary);
+  border-radius:50%;font-size:.78rem;font-weight:900;font-family:'Nunito',sans-serif;
+  flex-shrink:0;margin-top:2px;transition:all .2s;
+}
+.q-num.answered{background:var(--success);color:#fff}
+.q-text{font-size:.96rem;line-height:1.75;color:var(--text)}
+.options-list{display:flex;flex-direction:column;gap:8px;margin-left:40px}
+.opt-label{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 16px;border:2px solid var(--border);border-radius:var(--r-sm);
+  cursor:pointer;transition:all .15s;font-size:.92rem;
+}
+.opt-label:hover{border-color:var(--primary);background:var(--primary-light)}
+.opt-label.selected{border-color:var(--primary);background:var(--primary-light)}
+.opt-label input[type="radio"]{display:none}
+.opt-key{font-family:'Nunito',sans-serif;font-weight:800;color:var(--primary);width:20px;flex-shrink:0;margin-top:1px}
 
-.question-item {
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--lgray);
-  transition: background 0.15s;
+/* ===== DRAG & DROP (Type 4 篇章結構) ===== */
+.sentence-bank{margin:16px 24px;padding:16px;background:var(--bg);border-radius:var(--r-sm);border:2px dashed var(--border)}
+.sb-title{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;font-family:'Nunito',sans-serif}
+.sb-items{display:flex;flex-direction:column;gap:8px}
+.draggable-card{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 16px;background:var(--card);border:2px solid var(--border);
+  border-radius:var(--r-sm);cursor:grab;user-select:none;
+  transition:all .2s;font-size:.88rem;line-height:1.6;
 }
-.question-item:last-child { border-bottom: none; }
-.question-item.answered { background: #fafdf9; }
-
-.question-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
-  background: var(--navy);
-  color: white;
-  border-radius: 50%;
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  margin-right: 10px;
-  flex-shrink: 0;
+.draggable-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.draggable-card.dragging{opacity:.4;cursor:grabbing}
+.draggable-card.used{opacity:.35;background:var(--bg);cursor:not-allowed;pointer-events:none}
+.drag-letter{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;min-width:28px;
+  background:var(--primary);color:#fff;border-radius:50%;
+  font-size:.75rem;font-weight:900;font-family:'Nunito',sans-serif;flex-shrink:0;
 }
-.question-num.answered { background: var(--green); }
-
-.question-text {
-  font-size: 0.97rem;
-  line-height: 1.75;
-  color: var(--ink);
-  margin-bottom: 16px;
-  display: flex; align-items: flex-start;
+.drag-text{flex:1;color:var(--text)}
+.drag-handle{color:var(--text-2);font-size:.9rem;flex-shrink:0}
+.drop-zone{
+  display:inline-flex;align-items:center;gap:8px;
+  min-width:180px;min-height:38px;
+  border:2px dashed var(--border);border-radius:var(--r-sm);
+  padding:6px 12px;margin:0 4px;vertical-align:middle;
+  transition:all .2s;background:#FAFBFF;cursor:default;position:relative;
 }
-
-/* Radio options */
-.options-list { display: flex; flex-direction: column; gap: 8px; margin-left: 38px; }
-.option-label {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 11px 16px;
-  border: 2px solid var(--lgray);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-size: 0.92rem;
+.drop-zone.drag-over{border-color:var(--primary);background:var(--primary-light)}
+.drop-zone.filled{border-style:solid;border-color:var(--success);background:var(--success-light);cursor:default}
+.dz-placeholder{font-size:.82rem;color:var(--text-2);font-style:italic}
+.dz-content{display:flex;align-items:center;gap:8px;flex:1}
+.dz-letter{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;min-width:24px;
+  background:var(--success);color:#fff;border-radius:50%;
+  font-size:.7rem;font-weight:900;font-family:'Nunito',sans-serif;
 }
-.option-label:hover { border-color: var(--gold); background: #fffbf0; }
-.option-label input[type="radio"] { display: none; }
-.option-label.selected { border-color: var(--navy); background: #f0f4ff; }
-.option-key {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--navy);
-  width: 20px;
-  flex-shrink: 0;
-  margin-top: 1px;
+.dz-text{font-size:.85rem;color:var(--text);line-height:1.4}
+.dz-clear{
+  background:var(--emphasis);color:#fff;border:none;border-radius:50%;
+  width:20px;height:20px;cursor:pointer;font-size:.8rem;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:transform .15s;
 }
-
-/* Select dropdown (type 3/4) */
-.blank-select {
-  padding: 6px 12px;
-  border: 2px solid var(--gold);
-  border-radius: 6px;
-  background: white;
-  font-size: 0.88rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--navy);
-  cursor: pointer;
-  margin: 0 2px;
-  min-width: 100px;
-}
-.blank-select:focus { outline: none; border-color: var(--navy); }
-
-/* Text input (type 6) */
-.blank-input {
-  padding: 5px 12px;
-  border: 2px solid var(--gold);
-  border-radius: 6px;
-  background: white;
-  font-size: 0.92rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--navy);
-  width: 160px;
-  margin: 0 3px;
-}
-.blank-input:focus { outline: none; border-color: var(--navy); }
-.blank-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px;
-  background: var(--gold);
-  color: var(--navy);
-  border-radius: 50%;
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  margin: 0 2px;
-  vertical-align: middle;
-}
-
-/* Paragraph options (type 4) */
-.para-options { display: flex; flex-direction: column; gap: 8px; margin-left: 38px; }
-.para-option {
-  padding: 12px 16px;
-  border: 2px solid var(--lgray);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.para-option:hover { border-color: var(--gold); background: #fffbf0; }
-.para-option.selected { border-color: var(--navy); background: #f0f4ff; }
-.para-option-key {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700; color: var(--navy); margin-right: 8px;
-}
+.dz-clear:hover{transform:scale(1.2)}
 
 /* Section question (type 6) */
-.section-question {
-  padding: 20px 28px;
-  font-size: 0.95rem;
-  line-height: 2.2;
-  background: var(--cream);
-  border-bottom: 1px solid var(--lgray);
-}
-.section-question-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gray);
-  margin-bottom: 10px;
-}
+.section-question{padding:20px 26px;font-size:.95rem;line-height:2.3;background:var(--bg);border-bottom:2px solid var(--border)}
+.sq-label{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;font-family:'Nunito',sans-serif}
 
-/* Submit button area */
-.quiz-footer {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: white;
-  border-top: 2px solid var(--lgray);
-  padding: 16px 32px;
-  display: flex; align-items: center; justify-content: space-between;
-  z-index: 50;
+/* ===== QUIZ FOOTER ===== */
+.quiz-footer{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--card);border-top:2px solid var(--border);
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
+  z-index:50;box-shadow:0 -4px 20px rgba(0,0,0,.08);
 }
-.quiz-answer-count { font-size: 0.88rem; color: var(--gray); }
-.quiz-answer-count b { color: var(--navy); }
-
-.btn-submit {
-  padding: 14px 36px;
-  background: var(--navy);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.04em;
+.ans-count{font-size:.88rem;color:var(--text-2)}
+.ans-count b{color:var(--primary);font-family:'Nunito',sans-serif;font-weight:900}
+.btn-submit{
+  padding:13px 32px;background:var(--primary);color:#fff;border:none;
+  border-radius:99px;font-size:.98rem;font-weight:900;font-family:'Nunito',sans-serif;
+  cursor:pointer;transition:all .2s;letter-spacing:.03em;
 }
-.btn-submit:hover { background: var(--gold); color: var(--navy); }
-.btn-submit.ready { background: var(--green); animation: pulse 2s ease infinite; }
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(45,106,79,0.4); }
-  50%       { box-shadow: 0 0 0 10px rgba(45,106,79,0); }
-}
+.btn-submit:hover{background:var(--primary-dark);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.btn-submit.ready{background:var(--success);animation:pulse-green 2s ease infinite}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(107,203,119,.4)}50%{box-shadow:0 0 0 12px rgba(107,203,119,0)}}
 
 /* ===== RESULTS VIEW ===== */
-#view-results { background: var(--paper); }
-.results-body { max-width: 720px; margin: 0 auto; padding: 60px 24px; }
+#view-results{background:var(--bg)}
+.results-body{max-width:700px;margin:0 auto;padding:48px 24px 60px}
+.score-hero{
+  background:linear-gradient(135deg,var(--primary) 0%,#9C8CFF 100%);
+  border-radius:var(--r);padding:44px;text-align:center;
+  margin-bottom:24px;box-shadow:var(--shadow-lg);
+  animation:fadeUp .5s ease both;
+}
+.score-label{font-size:.78rem;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.65);text-transform:uppercase;margin-bottom:16px;font-family:'Nunito',sans-serif}
+.score-num{font-family:'Nunito',sans-serif;font-weight:900;font-size:5.5rem;color:var(--accent);line-height:1;margin-bottom:6px}
+.score-of{font-size:1.1rem;color:rgba(255,255,255,.7);margin-bottom:24px}
+.score-bar-wrap{background:rgba(255,255,255,.2);height:12px;border-radius:99px;overflow:hidden;max-width:280px;margin:0 auto 12px}
+.score-bar-fill{height:100%;background:var(--accent);border-radius:99px;transition:width 1s cubic-bezier(.16,1,.3,1)}
+.score-pct{font-family:'Nunito',sans-serif;font-weight:900;font-size:.95rem;color:rgba(255,255,255,.8)}
+.result-btn-row{display:flex;gap:12px;margin-bottom:20px}
+.btn-outline{
+  flex:1;padding:14px;background:var(--card);border:2px solid var(--border);
+  color:var(--text);font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;
+  border-radius:var(--r-sm);cursor:pointer;transition:all .2s;
+}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.review-toggle-btn{
+  width:100%;padding:16px 22px;background:var(--card);border:2px solid var(--border);
+  border-radius:var(--r-sm);font-size:.95rem;font-weight:800;font-family:'Nunito',sans-serif;
+  color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  transition:all .2s;margin-bottom:14px;box-shadow:var(--shadow);
+}
+.review-toggle-btn:hover{border-color:var(--primary);box-shadow:var(--shadow-md)}
+.review-items-wrap{display:none}
+.review-items-wrap.open{display:flex;flex-direction:column;gap:10px}
+.rev-item{
+  background:var(--card);border-radius:var(--r-sm);padding:16px 20px;
+  box-shadow:var(--shadow);border-left:5px solid var(--border);font-size:.9rem;
+}
+.rev-item.correct{border-color:var(--success)}
+.rev-item.wrong{border-color:var(--emphasis)}
+.rev-item.skipped{border-color:var(--accent)}
+.rev-q{color:var(--text-2);font-size:.8rem;margin-bottom:5px}
+.rev-user{margin-bottom:3px}
+.rev-ans{font-weight:800}
+.correct .rev-ans{color:var(--success)}
+.wrong .rev-ans{color:var(--emphasis)}
+.rev-hint{font-size:.82rem;color:var(--success)}
 
-.score-card {
-  background: var(--navy);
-  color: white;
-  border-radius: 20px;
-  padding: 48px;
-  text-align: center;
-  margin-bottom: 32px;
-  box-shadow: var(--shadow-lg);
-  animation: fadeUp 0.5s ease both;
-}
-.score-label {
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
-  color: rgba(255,255,255,0.55);
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-.score-number {
-  font-family: 'DM Serif Display', serif;
-  font-size: 5rem;
-  color: var(--gold);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-.score-total { font-size: 1.2rem; color: rgba(255,255,255,0.6); margin-bottom: 24px; }
-.score-bar-wrap {
-  background: rgba(255,255,255,0.1);
-  height: 12px; border-radius: 99px;
-  overflow: hidden; margin: 0 auto; max-width: 320px;
-}
-.score-bar-fill {
-  height: 100%; background: var(--gold);
-  border-radius: 99px;
-  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.score-percent {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  color: var(--gold2);
-  margin-top: 10px;
-}
-
-.review-toggle {
-  background: white;
-  border: none;
-  width: 100%;
-  padding: 16px 24px;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--navy);
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  margin-bottom: 16px;
-  display: flex; align-items: center; justify-content: space-between;
-  transition: all 0.2s;
-}
-.review-toggle:hover { box-shadow: var(--shadow-lg); }
-
-.review-list { display: none; }
-.review-list.open { display: block; }
-
-.review-item {
-  background: white;
-  border-radius: 10px;
-  padding: 18px 22px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  border-left: 4px solid var(--lgray);
-  font-size: 0.9rem;
-}
-.review-item.correct { border-color: var(--green); }
-.review-item.wrong   { border-color: var(--red); }
-.review-item.skipped { border-color: #f59e0b; }
-
-.review-q { color: var(--gray); margin-bottom: 6px; }
-.review-user { margin-bottom: 4px; }
-.review-answer { font-weight: 700; }
-.correct .review-answer { color: var(--green); }
-.wrong .review-answer { color: var(--red); }
-.review-correct-ans { color: var(--green); font-size: 0.85rem; }
-
-.btn-retry {
-  display: block;
-  width: 100%;
-  padding: 16px;
-  background: white;
-  border: 2px solid var(--navy);
-  color: var(--navy);
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 10px;
-  cursor: pointer;
-  margin-top: 24px;
-  transition: all 0.2s;
-  text-align: center;
-}
-.btn-retry:hover { background: var(--navy); color: white; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 600px) {
-  .topbar { padding: 12px 16px; }
-  .quiz-body { padding: 24px 12px 120px; }
-  .section-passage, .section-header, .question-item { padding-left: 16px; padding-right: 16px; }
-  .options-list, .para-options { margin-left: 0; }
-  .login-card { padding: 40px 28px; }
-  .login-title { font-size: 1.8rem; }
-  .quiz-topbar { padding: 12px 16px; }
-  .progress-bar-wrap { width: 100px; }
-  .quiz-footer { padding: 12px 16px; }
-  .results-body { padding: 32px 16px; }
-  .score-card { padding: 36px 24px; }
-  .score-number { font-size: 4rem; }
+/* Responsive */
+@media(max-width:600px){
+  .topbar,.quiz-topbar,.quiz-footer{padding:12px 16px}
+  .quiz-body{padding:20px 12px 110px}
+  .section-passage,.section-header,.question-item{padding-left:16px;padding-right:16px}
+  .options-list{margin-left:0}
+  .login-card{padding:40px 28px}
+  .login-title{font-size:1.7rem}
+  .score-num{font-size:4rem}
+  .prog-bar-wrap{width:90px}
+  .sentence-bank,.wordbank{margin:12px 14px}
+  .results-body{padding:32px 16px}
 }
 </style>
 </head>
 <body>
 
-<!-- ==================== LOGIN VIEW ==================== -->
-<div id="view-login" class="view">
-  <div class="login-bg"></div>
-  <div class="login-card">
-    <div class="login-title">模考練習</div>
-    <div class="login-subtitle">PRACTICE EXAM SYSTEM</div>
-    <hr class="divider">
-    <p style="font-size:0.88rem;color:rgba(255,255,255,0.5);margin-bottom:20px;">請使用 Google 帳號登入</p>
+<!-- ===== LOADING OVERLAY ===== -->
+<div id="loading-overlay" class="hidden">
+  <div class="ov-spinner"></div>
+  <div class="ov-text">正在驗證身份，請稍候…</div>
+</div>
 
-    <!-- Google One Tap -->
+<!-- ===== LOGIN ===== -->
+<div id="view-login" class="view active">
+  <div class="login-card">
+    <span class="login-emoji">🚀</span>
+    <div class="login-title">Ivy 模考衝刺 <span>PLUS</span></div>
+    <div class="login-subtitle">英文考試全科模擬練習平台</div>
+    <hr class="login-divider">
+    <p style="font-size:.88rem;color:var(--text-2);margin-bottom:18px">使用 Google 帳號登入</p>
     <div id="g_id_onload"
       data-client_id="1015787800358-6okt3a86ojgouvs0bk37n72dh11roo6n.apps.googleusercontent.com"
       data-callback="onGoogleSignIn"
@@ -696,193 +459,216 @@ body {
       data-shape="rectangular"
       data-locale="zh-TW">
     </div>
-
-    <p class="login-note">僅限受邀用戶使用。登入後需輸入序號才能開始練習。</p>
+    <p class="login-note">🔒 僅限受邀用戶。登入後需輸入序號開通。</p>
   </div>
 </div>
 
-<!-- ==================== ACTIVATE VIEW ==================== -->
+<!-- ===== ACTIVATE ===== -->
 <div id="view-activate" class="view">
   <div class="topbar">
-    <div class="topbar-logo">模考<span>練習</span></div>
-    <div class="topbar-user">
-      <span id="activate-email-display"></span>
-      <button class="btn-logout" onclick="logout()">登出</button>
+    <div class="topbar-logo">Ivy 模考衝刺 <span class="logo-plus">PLUS</span></div>
+    <div class="topbar-right">
+      <span class="topbar-email" id="act-email"></span>
+      <button class="btn-ghost" onclick="logout()">登出</button>
     </div>
   </div>
-  <div class="container">
-    <div class="activate-card">
-      <h2>🔑 輸入序號</h2>
-      <p>請輸入管理員提供的專屬序號，兌換後即可使用全部試卷。</p>
-
-      <div class="form-group">
-        <label>序號</label>
-        <input type="text" id="code-input" placeholder="請輸入序號" autocomplete="off"
-          onkeydown="if(event.key==='Enter') submitCode()">
-      </div>
+  <div class="activate-wrap">
+    <div class="card">
+      <div class="card-icon">🔑</div>
+      <h2>輸入專屬序號</h2>
+      <p>請輸入管理員提供的序號，兌換後即可使用全部試卷。</p>
+      <label class="form-label">序號</label>
+      <input class="form-input" id="code-input" type="text" placeholder="輸入序號" autocomplete="off"
+        onkeydown="if(event.key==='Enter')submitCode()">
       <button class="btn-primary" id="code-btn" onclick="submitCode()">兌換序號</button>
       <div id="code-msg"></div>
     </div>
   </div>
 </div>
 
-<!-- ==================== TESTS VIEW ==================== -->
+<!-- ===== TESTS ===== -->
 <div id="view-tests" class="view">
   <div class="topbar">
-    <div class="topbar-logo">模考<span>練習</span></div>
-    <div class="topbar-user">
-      <span id="tests-email-display"></span>
-      <button class="btn-logout" onclick="logout()">登出</button>
+    <div class="topbar-logo">Ivy 模考衝刺 <span class="logo-plus">PLUS</span></div>
+    <div class="topbar-right">
+      <span class="topbar-email" id="tests-email"></span>
+      <button class="btn-ghost" onclick="logout()">登出</button>
     </div>
   </div>
-  <div class="container">
-    <div class="tests-header">
-      <h2>選擇試卷</h2>
-      <p>點選任一試卷開始練習，作答後系統會自動計算分數。</p>
+  <div class="tests-inner">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tests',this)">📚 試卷列表</button>
+      <button class="tab-btn" onclick="switchTab('history',this)">📊 考試紀錄</button>
     </div>
-    <div id="test-grid" class="test-grid">
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <span>載入試卷列表中…</span>
+
+    <div id="tab-tests" class="tab-content active">
+      <div class="section-title">選擇試卷</div>
+      <div class="section-sub">點選任一試卷開始練習，作答完成後系統自動計分。</div>
+      <div id="test-grid" class="test-grid">
+        <div class="loading-state"><div class="spinner"></div><span>載入中…</span></div>
+      </div>
+    </div>
+
+    <div id="tab-history" class="tab-content">
+      <div class="section-title">考試紀錄</div>
+      <div class="section-sub">所有考試結果與解析，可點選展開查看每題詳情。</div>
+      <div id="history-list" class="history-list">
+        <div class="loading-state"><div class="spinner"></div><span>載入中…</span></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ==================== QUIZ VIEW ==================== -->
+<!-- ===== QUIZ ===== -->
 <div id="view-quiz" class="view">
   <div class="topbar">
-    <div class="topbar-logo">模考<span>練習</span></div>
-    <div class="topbar-user">
-      <button class="btn-logout" onclick="backToTests()">← 返回列表</button>
+    <div class="topbar-logo">Ivy 模考衝刺 <span class="logo-plus">PLUS</span></div>
+    <div class="topbar-right">
+      <button class="btn-ghost" onclick="backToTests()">← 返回列表</button>
     </div>
   </div>
   <div class="quiz-topbar">
-    <div>
+    <div class="quiz-info">
       <div class="quiz-title" id="quiz-title"></div>
-      <div class="quiz-meta" id="quiz-meta"></div>
+      <div class="quiz-sub" id="quiz-sub"></div>
     </div>
-    <div class="quiz-progress">
-      <div class="progress-bar-wrap">
-        <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
-      </div>
-      <span class="progress-txt" id="progress-txt">0 / 0</span>
+    <div class="quiz-prog">
+      <div class="prog-bar-wrap"><div class="prog-bar-fill" id="prog-bar" style="width:0%"></div></div>
+      <span class="prog-txt" id="prog-txt">0/0</span>
     </div>
   </div>
   <div class="quiz-body" id="quiz-body">
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <span>載入題目中…</span>
-    </div>
+    <div class="loading-state"><div class="spinner"></div><span>載入題目中…</span></div>
   </div>
   <div class="quiz-footer">
-    <div class="quiz-answer-count">已作答 <b id="answered-count">0</b> / <b id="total-count">0</b> 題</div>
+    <div class="ans-count">已作答 <b id="ans-count">0</b> / <b id="total-count">0</b> 題</div>
     <button class="btn-submit" id="submit-btn" onclick="confirmSubmit()">交卷</button>
   </div>
 </div>
 
-<!-- ==================== RESULTS VIEW ==================== -->
+<!-- ===== RESULTS ===== -->
 <div id="view-results" class="view">
   <div class="topbar">
-    <div class="topbar-logo">模考<span>練習</span></div>
-    <div class="topbar-user">
-      <button class="btn-logout" onclick="backToTests()">← 返回列表</button>
+    <div class="topbar-logo">Ivy 模考衝刺 <span class="logo-plus">PLUS</span></div>
+    <div class="topbar-right">
+      <button class="btn-ghost" onclick="backToTests()">← 返回列表</button>
     </div>
   </div>
   <div class="results-body">
-    <div class="score-card">
+    <div class="score-hero">
       <div class="score-label">FINAL SCORE</div>
-      <div class="score-number" id="result-score">0</div>
-      <div class="score-total" id="result-total">/ 0 分</div>
-      <div class="score-bar-wrap">
-        <div class="score-bar-fill" id="result-bar" style="width:0%"></div>
-      </div>
-      <div class="score-percent" id="result-percent">0%</div>
+      <div class="score-num" id="res-score">0</div>
+      <div class="score-of" id="res-of">/ 0 分</div>
+      <div class="score-bar-wrap"><div class="score-bar-fill" id="res-bar" style="width:0%"></div></div>
+      <div class="score-pct" id="res-pct">0%</div>
     </div>
-
-    <button class="review-toggle" onclick="toggleReview(this)">
-      <span>📋 查看詳細解析</span>
-      <span>▼</span>
+    <div class="result-btn-row">
+      <button class="btn-outline" onclick="backToTests()">返回列表</button>
+      <button class="btn-outline" onclick="retakeCurrentTest()">🔄 再考一次</button>
+    </div>
+    <button class="review-toggle-btn" onclick="toggleReview(this)">
+      <span>📋 查看詳細解析</span><span id="rev-arrow">▼</span>
     </button>
-    <div class="review-list" id="review-list"></div>
-
-    <button class="btn-retry" onclick="backToTests()">返回試卷列表</button>
+    <div class="review-items-wrap" id="rev-list"></div>
   </div>
 </div>
 
-
-<!-- ==================== SCRIPTS ==================== -->
-<script src="https://accounts.google.com/gsi/client" async defer>// 頁面載入時自動顯示登入畫面
-showView('login');
-</script>
+<!-- ===== SCRIPTS ===== -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwq-DlQxG7pQ-GwAowXBcWve5opsXJA_nJrsRZU-r0RtuPCw5Yhb01FJnfpYWIAewTiHA/exec';
 
 // ============================================================
-//  CONFIG — 請填入你的設定
-// ============================================================
-const SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbwq-DlQxG7pQ-GwAowXBcWve5opsXJA_nJrsRZU-r0RtuPCw5Yhb01FJnfpYWIAewTiHA/exec';
-// Google Client ID 已在上面 g_id_onload 的 data-client_id 設定
-
-// ============================================================
-//  State
+// State
 // ============================================================
 let userEmail   = '';
-let currentTest = null;   // { test_id, test_name, test_type }
-let quizData    = null;   // { questions, sections }
-let answers     = {};     // { question_id: value }
+let currentTest = null;
+let quizData    = null;
+let answers     = {};
+let historyData = [];  // user's exam history
 
 // ============================================================
-//  API Helper
+// API
 // ============================================================
 async function api(action, params = {}) {
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
   const res = await fetch(url.toString(), { redirect: 'follow' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+async function apiPost(action, params = {}) {
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action, ...params }),
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
 // ============================================================
-//  Google Sign-In
+// Loading Overlay
+// ============================================================
+function showLoading(msg) {
+  const ov = document.getElementById('loading-overlay');
+  ov.querySelector('.ov-text').textContent = msg || '正在載入…';
+  ov.classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+// ============================================================
+// Google Sign-In
 // ============================================================
 function onGoogleSignIn(response) {
   const payload = parseJWT(response.credential);
-  if (!payload || !payload.email) { alert('登入失敗，請重試'); return; }
+  if (!payload?.email) { alert('登入失敗，請重試'); return; }
   userEmail = payload.email;
+  showLoading('正在驗證身份，請稍候…');
   afterLogin();
 }
 
 function parseJWT(token) {
   try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(decodeURIComponent(atob(base64).split('').map(c =>
-      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+    const b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(atob(b64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
   } catch { return null; }
 }
 
 async function afterLogin() {
-  // 1. 註冊（若已存在會 skip）
-  await api('registerUser', { email: userEmail }).catch(() => {});
-  // 2. 檢查序號是否已開通
-  const { hasAccess } = await api('checkAccess', { email: userEmail });
-  if (hasAccess) {
-    showTests();
-  } else {
-    showView('activate');
-    document.getElementById('activate-email-display').textContent = userEmail;
+  try {
+    await api('registerUser', { email: userEmail });
+    const { hasAccess } = await api('checkAccess', { email: userEmail });
+    hideLoading();
+    if (hasAccess) {
+      showTests();
+    } else {
+      showView('activate');
+      document.getElementById('act-email').textContent = userEmail;
+    }
+  } catch (e) {
+    hideLoading();
+    alert('連線失敗，請重新整理頁面');
   }
 }
 
 function logout() {
   if (!confirm('確定登出？')) return;
   google.accounts.id.disableAutoSelect();
-  userEmail = ''; answers = {}; quizData = null; currentTest = null;
+  userEmail = ''; answers = {}; quizData = null; currentTest = null; historyData = [];
   showView('login');
 }
 
 // ============================================================
-//  Views
+// Views
 // ============================================================
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -890,87 +676,163 @@ function showView(id) {
   window.scrollTo(0, 0);
 }
 
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'history') renderHistory();
+}
+
 // ============================================================
-//  Activate Code
+// Activate
 // ============================================================
 async function submitCode() {
   const code = document.getElementById('code-input').value.trim();
   const btn  = document.getElementById('code-btn');
   const msg  = document.getElementById('code-msg');
-  if (!code) { showMsg(msg, '請輸入序號', 'error'); return; }
-
-  btn.disabled = true;
-  btn.textContent = '驗證中…';
-  msg.innerHTML = '';
-
+  if (!code) { msg.innerHTML = '<div class="msg-error">請輸入序號</div>'; return; }
+  btn.disabled = true; btn.textContent = '驗證中…'; msg.innerHTML = '';
   try {
     const data = await api('activateCode', { email: userEmail, code });
     if (data.status === 'activated') {
-      showMsg(msg, '✅ 序號兌換成功！即將進入試卷列表…', 'success');
-      setTimeout(showTests, 1500);
+      msg.innerHTML = '<div class="msg-success">✅ 序號兌換成功！正在進入…</div>';
+      setTimeout(showTests, 1200);
     } else {
-      showMsg(msg, data.error || '兌換失敗', 'error');
+      msg.innerHTML = `<div class="msg-error">${data.error || '兌換失敗'}</div>`;
     }
-  } catch (e) {
-    showMsg(msg, '連線失敗，請稍後再試', 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = '兌換序號';
-}
-
-function showMsg(el, text, type) {
-  el.innerHTML = `<div class="msg-${type}">${text}</div>`;
+  } catch { msg.innerHTML = '<div class="msg-error">連線失敗，請稍後再試</div>'; }
+  btn.disabled = false; btn.textContent = '兌換序號';
 }
 
 // ============================================================
-//  Tests List
+// Tests List
 // ============================================================
 async function showTests() {
   showView('tests');
-  document.getElementById('tests-email-display').textContent = userEmail;
+  document.getElementById('tests-email').textContent = userEmail;
+
   const grid = document.getElementById('test-grid');
   grid.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>載入中…</span></div>';
 
   try {
-    const tests = await api('getTests');
-    if (!tests || !tests.length) {
-      grid.innerHTML = '<p style="color:var(--gray);padding:40px;">目前尚無試卷</p>';
-      return;
-    }
+    const [tests, history] = await Promise.all([
+      api('getTests'),
+      api('getHistory', { email: userEmail }),
+    ]);
+    historyData = Array.isArray(history) ? history : [];
+
+    // Build attempted map: test_id → { count, maxScore, total }
+    const attempted = {};
+    historyData.forEach(h => {
+      const tid = norm(h.test_id);
+      if (!attempted[tid]) attempted[tid] = { count: 0, maxScore: -1, total: Number(h.total) || 0 };
+      attempted[tid].count++;
+      const s = Number(h.score) || 0;
+      if (s > attempted[tid].maxScore) attempted[tid].maxScore = s;
+    });
+
+    if (!tests?.length) { grid.innerHTML = '<p style="color:var(--text-2);padding:40px">目前尚無試卷</p>'; return; }
+
     grid.innerHTML = tests.map(t => {
-      const typeLabel = String(t.test_type) === 'w' ? '筆試' : '聽力';
+      const tid  = norm(t.test_id);
+      const type = String(t.test_type) === 'w' ? '筆試' : '聽力';
+      const att  = attempted[tid];
+      const attBadge = att
+        ? `<div style="margin-top:10px"><span class="attempted-tag">✅ 已考過 ${att.count} 次｜最高 ${att.maxScore}/${att.total} 分</span></div>`
+        : '';
       return `
-      <div class="test-card" onclick="startTest('${norm(t.test_id)}', '${esc(t.test_name)}', '${typeLabel}')">
-        <div class="test-badge">${typeLabel}</div>
-        <h3>${esc(t.test_name) || '試卷 ' + norm(t.test_id)}</h3>
-        <div class="test-meta">${norm(t.test_id)}</div>
+      <div class="test-card" onclick="startTest('${tid}','${esc(t.test_name)}','${type}')">
+        <div class="test-badge">${type}</div>
+        <h3>${esc(t.test_name) || '試卷 ' + tid}</h3>
+        <div class="test-id">${tid}</div>
+        ${attBadge}
         <div class="test-arrow">→</div>
       </div>`;
     }).join('');
   } catch (e) {
-    grid.innerHTML = '<p style="color:var(--red);padding:40px;">載入失敗，請重新整理</p>';
+    grid.innerHTML = '<p style="color:var(--emphasis);padding:40px">載入失敗，請重新整理</p>';
   }
 }
 
 // ============================================================
-//  Quiz
+// History Tab
+// ============================================================
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!historyData.length) {
+    el.innerHTML = '<p style="color:var(--text-2);padding:40px;text-align:center">尚無考試紀錄</p>';
+    return;
+  }
+  el.innerHTML = historyData.map((h, idx) => {
+    const score = Number(h.score) || 0;
+    const total = Number(h.total) || 0;
+    const pct   = total ? Math.round(score / total * 100) : 0;
+    const ts    = String(h.timestamp || '').slice(0, 16);
+    return `
+    <div class="history-card">
+      <div class="history-card-top" onclick="toggleHistoryReview(${idx})">
+        <div>
+          <div class="history-test-name">${esc(h.test_name)}</div>
+          <div class="history-meta">${ts}　${pct}% 正確率</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="history-score-chip">
+            <div class="history-score-num">${score}</div>
+            <div class="history-score-total">/ ${total}</div>
+          </div>
+          <span style="color:var(--text-2)">▼</span>
+        </div>
+      </div>
+      <div class="history-review" id="hr-${idx}">
+        ${renderHistoryReview(h.review_json)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHistoryReview(idx) {
+  const el = document.getElementById('hr-' + idx);
+  el.classList.toggle('open');
+}
+
+function renderHistoryReview(reviewJson) {
+  let items = [];
+  try { items = JSON.parse(reviewJson || '[]'); } catch { return '<p style="color:var(--text-2)">無解析資料</p>'; }
+  if (!items.length) return '<p style="color:var(--text-2)">無解析資料</p>';
+  return '<div class="review-grid">' + items.map(r => {
+    const cls = !r.u ? 'skipped' : r.ok ? 'correct' : 'wrong';
+    const icon = !r.u ? '⏭' : r.ok ? '✅' : '❌';
+    return `
+    <div class="review-row ${cls}">
+      <div class="rr-q">第 ${r.n} 題（${r.p} 分）</div>
+      <div class="rr-ans ${r.ok ? 'rr-correct' : 'rr-wrong'}">你的答案：${r.u || '—'} ${icon}</div>
+      ${!r.ok ? `<div class="rr-correct-hint">✔ 正確答案：${r.c}</div>` : ''}
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// ============================================================
+// Quiz
 // ============================================================
 async function startTest(testId, testName, typeLabel) {
   answers = {};
   currentTest = { test_id: testId, test_name: testName, type_label: typeLabel };
   showView('quiz');
   document.getElementById('quiz-title').textContent = testName || '試卷 ' + testId;
-  document.getElementById('quiz-meta').textContent = typeLabel;
-  document.getElementById('quiz-body').innerHTML =
+  document.getElementById('quiz-sub').textContent   = typeLabel;
+  document.getElementById('quiz-body').innerHTML    =
     '<div class="loading-state"><div class="spinner"></div><span>載入題目中…</span></div>';
-
   try {
     quizData = await api('getTest', { testId });
     renderQuiz();
-  } catch (e) {
-    document.getElementById('quiz-body').innerHTML =
-      '<p style="color:var(--red);padding:40px;">題目載入失敗，請返回重試</p>';
+  } catch {
+    document.getElementById('quiz-body').innerHTML = '<p style="color:var(--emphasis);padding:40px">題目載入失敗，請返回重試</p>';
   }
+}
+
+function retakeCurrentTest() {
+  if (currentTest) startTest(currentTest.test_id, currentTest.test_name, currentTest.type_label);
 }
 
 function renderQuiz() {
@@ -978,282 +840,374 @@ function renderQuiz() {
   const sectionMap = {};
   sections.forEach(s => { sectionMap[norm(s.section_id)] = s; });
 
-  const processedSections = new Set();
+  const processed = new Set();
   const blocks = [];
   let qNum = 1;
 
   questions.forEach(q => {
-    const type = String(q.type);
+    const type  = String(q.type);
     const secId = norm(q.section_id);
 
     if (type === '1') {
       blocks.push(renderType1(q, qNum++));
-    } else if (!processedSections.has(secId)) {
-      processedSections.add(secId);
+    } else if (!processed.has(secId)) {
+      processed.add(secId);
       const secQs = questions.filter(sq => norm(sq.section_id) === secId);
       const sec   = sectionMap[secId] || {};
       const start = qNum;
-      const end   = qNum + secQs.length - 1;
-
       switch (type) {
-        case '2': blocks.push(renderClozeSection(sec, secQs, start)); break;
-        case '3': blocks.push(renderWordFillSection(sec, secQs, start)); break;
-        case '4': blocks.push(renderParaSection(sec, secQs, start)); break;
-        case '5': blocks.push(renderReadingSection(sec, secQs, start)); break;
-        case '6': blocks.push(renderMixedSection(sec, secQs, start)); break;
-        default:  blocks.push(renderReadingSection(sec, secQs, start));
+        case '2': blocks.push(renderCloze(sec, secQs, start)); break;
+        case '3': blocks.push(renderWordFill(sec, secQs, start)); break;
+        case '4': blocks.push(renderParaDrag(sec, secQs, start)); break;
+        case '5': blocks.push(renderReading(sec, secQs, start)); break;
+        case '6': blocks.push(renderMixed(sec, secQs, start)); break;
+        default:  blocks.push(renderReading(sec, secQs, start));
       }
-      qNum = end + 1;
+      qNum += secQs.length;
     }
   });
 
-  const totalQ = questions.length;
   document.getElementById('quiz-body').innerHTML = blocks.join('');
-  document.getElementById('total-count').textContent = totalQ;
-  document.getElementById('progress-txt').textContent = '0 / ' + totalQ;
+  document.getElementById('total-count').textContent = questions.length;
   updateProgress();
+  initDragDrop();
 }
 
-/* ----- Type 1: 詞彙題 ----- */
+/* Type 1 詞彙題 */
 function renderType1(q, num) {
-  const qid = norm(q.question_id);
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">詞彙題</span>
-      <span class="section-label"></span>
+      <span class="type-badge">詞彙題</span>
       <span class="section-range">${num}</span>
     </div>
-    <div class="questions-list">${renderMCQ(q, num, qid)}</div>
+    <div class="questions-list">${renderMCQ(q, num)}</div>
   </div>`;
 }
 
-/* ----- Type 2: 綜合測驗（克漏字）----- */
-function renderClozeSection(sec, qs, startNum) {
-  const content = replaceBlankNumbers(sec.section_content || '', startNum);
-  const qItems = qs.map((q, i) => renderMCQ(q, startNum + i, norm(q.question_id))).join('');
+/* Type 2 綜合測驗 */
+function renderCloze(sec, qs, startNum) {
+  const passage = replaceBlanksNum(sec.section_content || '', startNum);
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">綜合測驗</span>
-      <span class="section-label">閱讀文章，選出最適合的答案</span>
-      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
+      <span class="type-badge">綜合測驗</span>
+      <span class="section-label">選出最適合填入空格的答案</span>
+      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
     </div>
-    <div class="section-passage">${content}</div>
-    <div class="questions-list">${qItems}</div>
+    <div class="section-passage">${passage}</div>
+    <div class="questions-list">${qs.map((q,i)=>renderMCQ(q,startNum+i)).join('')}</div>
   </div>`;
 }
 
-/* ----- Type 3: 文意選填 ----- */
-function renderWordFillSection(sec, qs, startNum) {
-  const opts = getOptions(sec);
-  const wordBankHTML = `
-    <div class="wordbank">
-      <div class="wordbank-title">Word Bank</div>
-      <div class="wordbank-items">
-        ${opts.map(o => `<div class="wordbank-item"><b>${o.letter}</b>　${o.text}</div>`).join('')}
-      </div>
-    </div>`;
-
-  // Replace ## with numbered dropdown selects
-  const content = replaceBlanksWithSelect(sec.section_content || '', qs, startNum, opts, 'fill');
+/* Type 3 文意選填 */
+function renderWordFill(sec, qs, startNum) {
+  const opts = getOpts(sec);
+  const wbHTML = `<div class="wordbank"><div class="wb-title">Word Bank</div><div class="wb-items">${opts.map(o=>`<div class="wb-item"><b>${o.letter}</b>${o.text}</div>`).join('')}</div></div>`;
+  const passage = replaceBlanksSelect(sec.section_content || '', qs, startNum, opts);
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">文意選填</span>
-      <span class="section-label">從選項中選出最適合的字詞填入空格</span>
-      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
+      <span class="type-badge">文意選填</span>
+      <span class="section-label">從選項中選出最適合的字詞</span>
+      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
     </div>
-    ${wordBankHTML}
-    <div class="section-passage">${content}</div>
+    ${wbHTML}
+    <div class="section-passage">${passage}</div>
   </div>`;
 }
 
-/* ----- Type 4: 篇章結構 ----- */
-function renderParaSection(sec, qs, startNum) {
-  const opts = getOptions(sec);
-  const sentenceOpts = `
-  <div class="wordbank">
-    <div class="wordbank-title">選項句子</div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-      ${opts.map(o => `<div class="wordbank-item" style="width:100%"><b>${o.letter}</b>　${o.text}</div>`).join('')}
+/* Type 4 篇章結構 (DRAG & DROP) */
+function renderParaDrag(sec, qs, startNum) {
+  const opts = getOpts(sec);
+
+  // Sentence bank
+  const bankHTML = `
+  <div class="sentence-bank">
+    <div class="sb-title">✦ 請將句子拖曳至段落中的空格</div>
+    <div class="sb-items">
+      ${opts.map(o => `
+      <div class="draggable-card" draggable="true" data-letter="${o.letter}" data-txt="${esc(o.text)}" id="dc_${o.letter}">
+        <span class="drag-letter">${o.letter}</span>
+        <span class="drag-text">${esc(o.text)}</span>
+        <span class="drag-handle">⠿</span>
+      </div>`).join('')}
     </div>
   </div>`;
 
-  const content = replaceBlanksWithSelect(sec.section_content || '', qs, startNum, opts, 'para');
+  // Passage with drop zones
+  let idx = 0;
+  const passage = esc(sec.section_content || '').replace(/\n/g,'<br>').replace(/##/g, () => {
+    if (idx >= qs.length) return '<span class="blank-num">?</span>';
+    const q   = qs[idx];
+    const qid = norm(q.question_id);
+    const num = startNum + idx;
+    idx++;
+    return `<span class="blank-num">${num}</span><span class="drop-zone" data-qid="${qid}" data-num="${num}" id="dz_${qid}"><span class="dz-placeholder">拖曳至此</span></span>`;
+  });
+
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">篇章結構</span>
-      <span class="section-label">選出最適合填入空格的句子</span>
-      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
+      <span class="type-badge">篇章結構</span>
+      <span class="section-label">將選項句子拖入正確位置</span>
+      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
     </div>
-    ${sentenceOpts}
-    <div class="section-passage">${content}</div>
+    ${bankHTML}
+    <div class="section-passage">${passage}</div>
   </div>`;
 }
 
-/* ----- Type 5: 閱讀測驗 ----- */
-function renderReadingSection(sec, qs, startNum) {
-  const qItems = qs.map((q, i) => renderMCQ(q, startNum + i, norm(q.question_id))).join('');
-  const imgHTML = sec.pic
-    ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.style.display='none'"></div>`
-    : '';
+/* Type 5 閱讀測驗 */
+function renderReading(sec, qs, startNum) {
+  const imgHTML = sec.pic ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.parentElement.style.display='none'"></div>` : '';
+  const passage = esc(sec.section_content || '').replace(/\n/g,'<br>');
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">閱讀測驗</span>
+      <span class="type-badge">閱讀測驗</span>
       <span class="section-label">閱讀文章後回答問題</span>
-      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
+      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
     </div>
     ${imgHTML}
-    <div class="section-passage">${esc(sec.section_content || '').replace(/\n/g,'<br>')}</div>
-    <div class="questions-list">${qItems}</div>
+    <div class="section-passage">${passage}</div>
+    <div class="questions-list">${qs.map((q,i)=>renderMCQ(q,startNum+i)).join('')}</div>
   </div>`;
 }
 
-/* ----- Type 6: 混合題 ----- */
-function renderMixedSection(sec, qs, startNum) {
-  const imgHTML = sec.pic
-    ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.style.display='none'"></div>`
-    : '';
-  // section_question has ## for text inputs
-  const sqContent = replaceBlanksWithInput(sec.section_question || '', qs, startNum);
+/* Type 6 混合題 */
+function renderMixed(sec, qs, startNum) {
+  const imgHTML = sec.pic ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.parentElement.style.display='none'"></div>` : '';
+  const passage = esc(sec.section_content || '').replace(/\n/g,'<br>');
+  // Check if qs have MCQ options (type 1 or 5 style mixed in)
+  let idx = 0;
+  const sqContent = (sec.section_question || '').length > 0
+    ? esc(sec.section_question).replace(/\n/g,'<br>').replace(/##/g, () => {
+        if (idx >= qs.length) return '____';
+        const q   = qs[idx]; const qid = norm(q.question_id); const num = startNum + idx; idx++;
+        // If has options → MCQ dropdown, else text input
+        const hasOpts = q.option1_A || q.option2_B;
+        if (hasOpts) {
+          const opts = ['A','B','C','D'].map((l,i) => {
+            const k = ['option1_A','option2_B','option3_C','option4_D'][i];
+            return q[k] ? `<option value="${l}">${l} — ${esc(String(q[k]))}</option>` : '';
+          }).join('');
+          return `<span class="blank-num">${num}</span><select class="blank-select" onchange="selectDrop('${qid}',this.value)"><option value="">—</option>${opts}</select>`;
+        }
+        return `<span class="blank-num">${num}</span><input class="blank-input" type="text" placeholder="填入答案" oninput="selectInput('${qid}',this.value)">`;
+      })
+    : qs.map((q, i) => renderMCQ(q, startNum + i)).join(''); // fallback: MCQ list
+
+  const isSQ = (sec.section_question || '').length > 0;
   return `
   <div class="section-block">
     <div class="section-header">
-      <span class="section-type-badge">混合題</span>
-      <span class="section-label">閱讀文章後填入正確答案</span>
-      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
+      <span class="type-badge">混合題</span>
+      <span class="section-label">閱讀文章後作答</span>
+      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
     </div>
     ${imgHTML}
-    <div class="section-passage">${esc(sec.section_content || '').replace(/\n/g,'<br>')}</div>
-    <div class="section-question">
-      <div class="section-question-label">填空題</div>
-      <span>${sqContent}</span>
-    </div>
+    <div class="section-passage">${passage}</div>
+    ${isSQ
+      ? `<div class="section-question"><div class="sq-label">作答區</div>${sqContent}</div>`
+      : `<div class="questions-list">${sqContent}</div>`
+    }
   </div>`;
 }
 
 // ============================================================
-//  Render Helpers
+// Render Helpers
 // ============================================================
 
-/** MCQ question (type 1, 2, 5) */
-function renderMCQ(q, num, qid) {
-  const opts = ['A','B','C','D'];
-  const optKeys = ['option1_A','option2_B','option3_C','option4_D'];
-  const qText = q.question ? `<span>${esc(q.question)}</span>` : `<span>第 ${num} 題</span>`;
-  const optHTML = opts.map((letter, i) => {
-    const text = q[optKeys[i]] || '';
-    if (!text) return '';
-    return `
-    <label class="option-label" onclick="selectMCQ('${qid}','${letter}',this)">
-      <input type="radio" name="q_${qid}" value="${letter}">
-      <span class="option-key">${letter}</span>
-      <span>${esc(String(text))}</span>
+function renderMCQ(q, num) {
+  const qid  = norm(q.question_id);
+  const keys = ['option1_A','option2_B','option3_C','option4_D'];
+  const opts = ['A','B','C','D'].map((l,i) => {
+    const t = q[keys[i]]; if (!t) return '';
+    return `<label class="opt-label" onclick="selectMCQ('${qid}','${l}',this)">
+      <input type="radio" name="q_${qid}" value="${l}">
+      <span class="opt-key">${l}</span><span>${esc(String(t))}</span>
     </label>`;
   }).join('');
   return `
   <div class="question-item" id="qi_${qid}">
-    <div class="question-text">
-      <span class="question-num" id="qnum_${qid}">${num}</span>
-      ${qText}
+    <div class="q-header">
+      <span class="q-num" id="qn_${qid}">${num}</span>
+      <span class="q-text">${esc(q.question || '')}</span>
     </div>
-    <div class="options-list">${optHTML}</div>
+    <div class="options-list">${opts}</div>
   </div>`;
 }
 
-/** Replace ## with colored inline numbers (for type 2 display) */
-function replaceBlankNumbers(text, startNum) {
-  let n = startNum;
-  return esc(text).replace(/##/g, () =>
-    `<span class="blank-num">${n++}</span>`);
+function replaceBlanksNum(text, start) {
+  let n = start;
+  return esc(text).replace(/##/g, () => `<span class="blank-num">${n++}</span>`);
 }
 
-/** Replace ## with dropdown selects (type 3, 4) */
-function replaceBlanksWithSelect(text, qs, startNum, opts, mode) {
+function replaceBlanksSelect(text, qs, start, opts) {
   let idx = 0;
-  return esc(text).replace(/\n/g, '<br>').replace(/##/g, () => {
-    if (idx >= qs.length) return `<span class="blank-num">?</span>`;
-    const q = qs[idx];
-    const qid = norm(q.question_id);
-    const num = startNum + idx;
-    idx++;
-    const optHTML = opts.map(o =>
-      `<option value="${o.letter}">${o.letter} — ${o.text.length > 40 ? o.text.slice(0,40)+'…' : o.text}</option>`
-    ).join('');
-    return `
-      <span class="blank-num">${num}</span>
-      <select class="blank-select" id="qs_${qid}" onchange="selectDrop('${qid}',this.value)">
-        <option value="">—</option>${optHTML}
-      </select>`;
+  return esc(text).replace(/\n/g,'<br>').replace(/##/g, () => {
+    if (idx >= qs.length) return '<span class="blank-num">?</span>';
+    const q = qs[idx]; const qid = norm(q.question_id); const num = start + idx; idx++;
+    const optHTML = opts.map(o => `<option value="${o.letter}">${o.letter} — ${o.text.slice(0,40)}</option>`).join('');
+    return `<span class="blank-num">${num}</span><select class="blank-select" id="qs_${qid}" onchange="selectDrop('${qid}',this.value)"><option value="">—</option>${optHTML}</select>`;
   });
 }
 
-/** Replace ## with text inputs (type 6) */
-function replaceBlanksWithInput(text, qs, startNum) {
-  let idx = 0;
-  return esc(text).replace(/\n/g, '<br>').replace(/##/g, () => {
-    if (idx >= qs.length) return `____`;
-    const q = qs[idx];
-    const qid = norm(q.question_id);
-    const num = startNum + idx;
-    idx++;
-    return `
-      <span class="blank-num">${num}</span>
-      <input class="blank-input" id="qi_input_${qid}" type="text" placeholder="填入答案"
-        oninput="selectInput('${qid}',this.value)">`;
-  });
-}
-
-/** Get options array from section row */
-function getOptions(sec) {
+function getOpts(sec) {
   const letters = ['A','B','C','D','E','F','G','H','I','J'];
-  const keys = ['option1_A','option2_B','option3_C','option4_D','option5_E',
-                 'option6_F','option7_G','option8_H','option9_I','option10_J'];
-  return keys
-    .map((k, i) => ({ letter: letters[i], text: String(sec[k] || '') }))
-    .filter(o => o.text);
+  const keys    = ['option1_A','option2_B','option3_C','option4_D','option5_E','option6_F','option7_G','option8_H','option9_I','option10_J'];
+  return keys.map((k,i) => ({ letter: letters[i], text: String(sec[k] || '') })).filter(o => o.text);
 }
 
-/** Convert Google Drive share URL to direct display URL */
 function driveUrl(url) {
   if (!url) return '';
-  const m = String(url).match(/\/file\/d\/([^\/\?]+)/);
-  return m ? `https://drive.google.com/uc?export=view&id=${m[1]}` : url;
+  const s = String(url);
+  // Extract Google Drive file ID from various URL formats
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
+  const m2 = s.match(/id=([a-zA-Z0-9_-]{10,})/);
+  if (m2) return `https://lh3.googleusercontent.com/d/${m2[1]}`;
+  return s;
 }
 
 // ============================================================
-//  Answer Recording
+// Drag & Drop (Type 4)
 // ============================================================
+let draggingLetter = null;
+let draggingText   = null;
 
+function initDragDrop() {
+  // Desktop drag
+  document.querySelectorAll('.draggable-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      if (card.classList.contains('used')) { e.preventDefault(); return; }
+      draggingLetter = card.dataset.letter;
+      draggingText   = card.dataset.txt;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (!draggingLetter) return;
+      performDrop(zone, draggingLetter, draggingText);
+    });
+  });
+
+  // Touch drag
+  let touchCard = null, ghost = null;
+
+  document.querySelectorAll('.draggable-card').forEach(card => {
+    card.addEventListener('touchstart', e => {
+      if (card.classList.contains('used')) return;
+      touchCard = card;
+      draggingLetter = card.dataset.letter;
+      draggingText   = card.dataset.txt;
+      // Create ghost
+      ghost = card.cloneNode(true);
+      ghost.id = 'drag-ghost';
+      ghost.style.cssText = 'position:fixed;opacity:.75;pointer-events:none;z-index:9999;max-width:300px;transform:scale(1.05)';
+      document.body.appendChild(ghost);
+    }, { passive: true });
+  });
+
+  document.addEventListener('touchmove', e => {
+    if (!touchCard) return;
+    const t = e.touches[0];
+    if (ghost) { ghost.style.left = (t.clientX - 40) + 'px'; ghost.style.top = (t.clientY - 20) + 'px'; }
+    document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+    const el = document.elementFromPoint(t.clientX, t.clientY)?.closest('.drop-zone');
+    if (el) el.classList.add('drag-over');
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!touchCard) return;
+    if (ghost) { ghost.remove(); ghost = null; }
+    const t = e.changedTouches[0];
+    const el = document.elementFromPoint(t.clientX, t.clientY)?.closest('.drop-zone');
+    document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+    if (el && draggingLetter) performDrop(el, draggingLetter, draggingText);
+    touchCard = null; draggingLetter = null; draggingText = null;
+  }, { passive: true });
+}
+
+function performDrop(zone, letter, text) {
+  const qid = zone.dataset.qid;
+  // If zone already filled → return old letter to bank
+  const prevLetter = answers[qid];
+  if (prevLetter) {
+    const prevCard = document.getElementById('dc_' + prevLetter);
+    if (prevCard) prevCard.classList.remove('used');
+  }
+  // If this letter was already placed elsewhere → clear that zone
+  Object.entries(answers).forEach(([oid, l]) => {
+    if (l === letter && oid !== qid) {
+      const oldZone = document.getElementById('dz_' + oid);
+      if (oldZone) fillDropZone(oldZone, null, null, oid);
+      delete answers[oid];
+    }
+  });
+
+  answers[qid] = letter;
+  fillDropZone(zone, letter, text, qid);
+
+  // Mark card as used
+  const card = document.getElementById('dc_' + letter);
+  if (card) card.classList.add('used');
+  updateProgress();
+}
+
+function fillDropZone(zone, letter, text, qid) {
+  if (!letter) {
+    zone.className = 'drop-zone';
+    zone.innerHTML = '<span class="dz-placeholder">拖曳至此</span>';
+    return;
+  }
+  zone.className = 'drop-zone filled';
+  zone.innerHTML = `
+    <div class="dz-content">
+      <span class="dz-letter">${letter}</span>
+      <span class="dz-text">${text}</span>
+    </div>
+    <button class="dz-clear" onclick="clearDrop('${qid}','${letter}',this)" title="移除">×</button>`;
+}
+
+function clearDrop(qid, letter, btn) {
+  delete answers[qid];
+  const zone = document.getElementById('dz_' + qid);
+  if (zone) fillDropZone(zone, null, null, qid);
+  const card = document.getElementById('dc_' + letter);
+  if (card) card.classList.remove('used');
+  updateProgress();
+}
+
+// ============================================================
+// Answer Recording
+// ============================================================
 function selectMCQ(qid, letter, labelEl) {
   answers[qid] = letter;
-  // Update UI
-  labelEl.closest('.options-list').querySelectorAll('.option-label').forEach(l => l.classList.remove('selected'));
+  labelEl.closest('.options-list').querySelectorAll('.opt-label').forEach(l => l.classList.remove('selected'));
   labelEl.classList.add('selected');
-  labelEl.closest('.question-item').classList.add('answered');
-  document.getElementById('qnum_' + qid)?.classList.add('answered');
+  document.getElementById('qi_' + qid)?.classList.add('answered');
+  document.getElementById('qn_' + qid)?.classList.add('answered');
   updateProgress();
 }
 
 function selectDrop(qid, value) {
-  if (value) {
-    answers[qid] = value;
-  } else {
-    delete answers[qid];
-  }
+  if (value) answers[qid] = value; else delete answers[qid];
   updateProgress();
 }
 
 function selectInput(qid, value) {
   const v = value.trim();
-  if (v) {
-    answers[qid] = v;
-  } else {
-    delete answers[qid];
-  }
+  if (v) answers[qid] = v; else delete answers[qid];
   updateProgress();
 }
 
@@ -1262,34 +1216,27 @@ function updateProgress() {
   const total    = quizData.questions.length;
   const answered = Object.keys(answers).length;
   const pct      = total ? Math.round(answered / total * 100) : 0;
-  document.getElementById('answered-count').textContent = answered;
-  document.getElementById('total-count').textContent    = total;
-  document.getElementById('progress-bar').style.width   = pct + '%';
-  document.getElementById('progress-txt').textContent   = `${answered} / ${total}`;
-
+  document.getElementById('ans-count').textContent   = answered;
+  document.getElementById('total-count').textContent  = total;
+  document.getElementById('prog-bar').style.width     = pct + '%';
+  document.getElementById('prog-txt').textContent     = `${answered}/${total}`;
   const btn = document.getElementById('submit-btn');
-  if (answered === total) btn.classList.add('ready');
-  else btn.classList.remove('ready');
+  if (answered === total) btn.classList.add('ready'); else btn.classList.remove('ready');
 }
 
 // ============================================================
-//  Submit & Score
+// Submit
 // ============================================================
-
 function confirmSubmit() {
-  const total    = quizData?.questions?.length || 0;
-  const answered = Object.keys(answers).length;
-  const unanswered = total - answered;
-  if (unanswered > 0) {
-    if (!confirm(`尚有 ${unanswered} 題未作答，確定要交卷嗎？`)) return;
-  }
-  calcAndShowResults();
+  const unanswered = quizData.questions.length - Object.keys(answers).length;
+  if (unanswered > 0 && !confirm(`還有 ${unanswered} 題未作答，確定要交卷嗎？`)) return;
+  calcAndShow();
 }
 
-function calcAndShowResults() {
+async function calcAndShow() {
   const { questions } = quizData;
   let score = 0, total = 0;
-  const reviewItems = [];
+  const review = [];
   let qNum = 1;
 
   questions.forEach(q => {
@@ -1298,76 +1245,75 @@ function calcAndShowResults() {
     const user    = String(answers[qid] || '').trim();
     const pts     = Number(q.score) || 0;
     total += pts;
-
-    const isCorrect = user.toLowerCase() === correct.toLowerCase();
-    if (user && isCorrect) score += pts;
-
-    reviewItems.push({ qid, qNum: qNum++, correct, user, pts, isCorrect });
+    const ok = user.toLowerCase() === correct.toLowerCase();
+    if (user && ok) score += pts;
+    review.push({ n: qNum++, c: correct, u: user, p: pts, ok });
   });
 
   showView('results');
 
   // Animate score
+  let disp = 0;
+  const step = Math.max(1, Math.ceil(score / 40));
+  const timer = setInterval(() => {
+    disp = Math.min(disp + step, score);
+    document.getElementById('res-score').textContent = disp;
+    if (disp >= score) clearInterval(timer);
+  }, 25);
+  document.getElementById('res-of').textContent  = `/ ${total} 分`;
   const pct = total ? Math.round(score / total * 100) : 0;
-  document.getElementById('result-total').textContent   = `/ ${total} 分`;
-  document.getElementById('result-percent').textContent = pct + '%';
+  document.getElementById('res-pct').textContent = pct + '%';
+  setTimeout(() => { document.getElementById('res-bar').style.width = pct + '%'; }, 100);
 
-  let displayed = 0;
-  const target = score;
-  const step   = Math.max(1, Math.ceil(target / 40));
-  const timer  = setInterval(() => {
-    displayed = Math.min(displayed + step, target);
-    document.getElementById('result-score').textContent = displayed;
-    if (displayed >= target) clearInterval(timer);
-  }, 30);
-
-  setTimeout(() => {
-    document.getElementById('result-bar').style.width = pct + '%';
-  }, 100);
-
-  // Build review list
-  const reviewHTML = reviewItems.map(r => {
-    const cls = !r.user ? 'skipped' : r.isCorrect ? 'correct' : 'wrong';
-    const statusIcon = !r.user ? '⏭ 未作答' : r.isCorrect ? '✅ 正確' : '❌ 錯誤';
+  // Review list
+  document.getElementById('rev-list').innerHTML = review.map(r => {
+    const cls  = !r.u ? 'skipped' : r.ok ? 'correct' : 'wrong';
+    const icon = !r.u ? '⏭ 未作答' : r.ok ? '✅ 正確' : '❌ 錯誤';
     return `
-    <div class="review-item ${cls}">
-      <div class="review-q">第 ${r.qNum} 題（${r.pts} 分）</div>
-      <div class="review-user">你的答案：<span class="review-answer">${r.user || '—'}</span>　${statusIcon}</div>
-      ${!r.isCorrect ? `<div class="review-correct-ans">正確答案：${r.correct}</div>` : ''}
+    <div class="rev-item ${cls}">
+      <div class="rev-q">第 ${r.n} 題（${r.p} 分）</div>
+      <div class="rev-user">你的答案：<span class="rev-ans">${r.u || '—'}</span>　${icon}</div>
+      ${!r.ok ? `<div class="rev-hint">✔ 正確答案：${r.c}</div>` : ''}
     </div>`;
   }).join('');
-  document.getElementById('review-list').innerHTML = reviewHTML;
+
+  // Save to history (silent fail)
+  try {
+    const reviewJson = JSON.stringify(review);
+    await api('saveResult', {
+      email: userEmail,
+      testId: currentTest.test_id,
+      testName: currentTest.test_name,
+      score, total,
+      reviewJson,
+    });
+    // Refresh historyData
+    historyData = await api('getHistory', { email: userEmail });
+    if (!Array.isArray(historyData)) historyData = [];
+  } catch { /* silent */ }
 }
 
 function toggleReview(btn) {
-  const list = document.getElementById('review-list');
+  const list = document.getElementById('rev-list');
   list.classList.toggle('open');
-  btn.querySelector('span:last-child').textContent = list.classList.contains('open') ? '▲' : '▼';
-}
-
-// ============================================================
-//  Utilities
-// ============================================================
-
-function norm(val) {
-  return String(val || '').trim().replace(/\.0+$/, '');
-}
-
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+  document.getElementById('rev-arrow').textContent = list.classList.contains('open') ? '▲' : '▼';
 }
 
 function backToTests() {
-  if (!confirm('確定返回試卷列表？目前作答進度將不會儲存。')) return;
+  if (!confirm('確定返回？目前作答進度不會儲存。')) return;
   answers = {}; quizData = null;
   showTests();
 }
 
-// 頁面載入時自動顯示登入畫面
+// ============================================================
+// Utils
+// ============================================================
+function norm(val) { return String(val || '').trim().replace(/\.0+$/, ''); }
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
 showView('login');
 </script>
 </body>
