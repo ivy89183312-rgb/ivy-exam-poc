@@ -812,7 +812,9 @@ body {
 
 
 <!-- ==================== SCRIPTS ==================== -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer>// 頁面載入時自動顯示登入畫面
+showView('login');
+</script>
 <script>
 
 // ============================================================
@@ -1365,6 +1367,8 @@ function backToTests() {
   showTests();
 }
 
+// 頁面載入時自動顯示登入畫面
+showView('login');
 </script>
 </body>
 </html>
