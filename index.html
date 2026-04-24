@@ -376,6 +376,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwq-DlQxG7pQ-GwAowXBcWve5opsXJA_nJrsRZU-r0RtuPCw5Yhb01FJnfpYWIAewTiHA/exec';
 
 let userEmail   = '';
+let idToken     = '';   // Google ID Token，用於後端驗證身份
 let currentTest = null;
 let quizData    = null;
 let answers     = {};
@@ -385,6 +386,8 @@ let historyData = [];
 async function api(action, params={}) {
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
+  // 帶上 token 讓後端驗證身份（registerUser/checkAccess 不需要也無妨）
+  if (idToken) url.searchParams.set('token', idToken);
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
   const res = await fetch(url.toString(), { redirect:'follow' });
   if (!res.ok) throw new Error('HTTP '+res.status);
@@ -403,7 +406,8 @@ function hideLoading() { document.getElementById('loading-overlay').classList.ad
 function onGoogleSignIn(response) {
   const payload = parseJWT(response.credential);
   if (!payload?.email) { alert('登入失敗，請重試'); return; }
-  userEmail = payload.email;
+  userEmail  = payload.email;
+  idToken    = response.credential; // 保存 token 用於後端驗證
   showLoading('正在驗證身份，請稍候…');
   afterLogin();
 }
@@ -436,7 +440,7 @@ async function afterLogin() {
 function logout() {
   if (!confirm('確定登出？')) return;
   google.accounts.id.disableAutoSelect();
-  userEmail=''; answers={}; quizData=null; currentTest=null; historyData=[];
+  userEmail=''; idToken=''; answers={}; quizData=null; currentTest=null; historyData=[];
   showView('login');
 }
 
@@ -908,7 +912,10 @@ function toggleReview(btn) {
 }
 
 function backToTests() {
-  if (!confirm('確定返回？目前作答進度不會儲存。')) return;
+  // 作答中才詢問，結果頁直接返回
+  if (document.getElementById('view-quiz').classList.contains('active')) {
+    if (!confirm('確定返回？目前作答進度不會儲存。')) return;
+  }
   answers={}; quizData=null;
   showTests();
 }
