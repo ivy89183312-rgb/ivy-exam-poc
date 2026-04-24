@@ -83,10 +83,11 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 
 /* ===== LOGIN VIEW ===== */
 #view-login{
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  min-height:100vh;align-items:center;justify-content:center;
   background:linear-gradient(135deg,#EAE9FF 0%,#F5F6F8 50%,#FFF9E6 100%);
   position:relative;overflow:hidden;
 }
+#view-login.active{display:flex}
 #view-login::before{
   content:'';position:absolute;inset:0;
   background-image:radial-gradient(circle at 20% 20%,rgba(108,99,255,.08) 0%,transparent 50%),
@@ -460,6 +461,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
       data-locale="zh-TW">
     </div>
     <p class="login-note">🔒 僅限受邀用戶。登入後需輸入序號開通。</p>
+    <p id="login-err" style="color:#FF6B6B;font-size:.82rem;margin-top:12px"></p>
   </div>
 </div>
 
@@ -646,9 +648,9 @@ function parseJWT(token) {
 async function afterLogin() {
   try {
     await api('registerUser', { email: userEmail });
-    const { hasAccess } = await api('checkAccess', { email: userEmail });
+    const data = await api('checkAccess', { email: userEmail });
     hideLoading();
-    if (hasAccess) {
+    if (data.hasAccess) {
       showTests();
     } else {
       showView('activate');
@@ -656,7 +658,10 @@ async function afterLogin() {
     }
   } catch (e) {
     hideLoading();
-    alert('連線失敗，請重新整理頁面');
+    // 顯示錯誤在登入卡片上
+    const errDiv = document.getElementById('login-err');
+    if (errDiv) errDiv.textContent = '❌ 連線失敗：' + e.message + '，請重新整理頁面';
+    console.error('afterLogin error:', e);
   }
 }
 
