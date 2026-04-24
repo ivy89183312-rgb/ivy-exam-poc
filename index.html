@@ -1067,12 +1067,13 @@ function getOpts(sec) {
 
 function driveUrl(url) {
   if (!url) return '';
-  const s = String(url);
-  // Extract Google Drive file ID from various URL formats
-  const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
-  if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
-  const m2 = s.match(/id=([a-zA-Z0-9_-]{10,})/);
-  if (m2) return `https://lh3.googleusercontent.com/d/${m2[1]}`;
+  const s = String(url).trim();
+  // 已經是完整圖片網址就直接用
+  if (s.startsWith('https://ivy89183312-rgb.github.io') || 
+      s.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return s;
+  // 嘗試從 Google Drive URL 取出 ID
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || s.match(/id=([a-zA-Z0-9_-]{10,})/);
+  if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
   return s;
 }
 
@@ -1218,6 +1219,23 @@ function selectInput(qid, value) {
 
 function updateProgress() {
   if (!quizData) return;
+
+  // 掃描所有 dropdown（type 3 文意選填）
+  document.querySelectorAll('select.blank-select').forEach(sel => {
+    const id = sel.id.replace(/^qs_/, '');
+    if (sel.value) answers[id] = sel.value;
+    else delete answers[id];
+  });
+
+  // 掃描所有文字輸入（type 6 混合題）
+  document.querySelectorAll('input.blank-input').forEach(inp => {
+    const m = (inp.getAttribute('oninput') || '').match(/selectInput\('([^']+)'/);
+    if (m) {
+      if (inp.value.trim()) answers[m[1]] = inp.value.trim();
+      else delete answers[m[1]];
+    }
+  });
+
   const total    = quizData.questions.length;
   const answered = Object.keys(answers).length;
   const pct      = total ? Math.round(answered / total * 100) : 0;
