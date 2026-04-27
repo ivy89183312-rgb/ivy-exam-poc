@@ -385,14 +385,13 @@ let historyData = [];
 
 // ── API ──────────────────────────────────────────────
 async function api(action, params={}) {
-  // 改用 POST，token 和參數放在 body，不暴露在 URL
-  const body = JSON.stringify({ action, token: idToken, ...params });
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' }, // Apps Script 需要 text/plain 才能讀 postData
-    body,
-    redirect: 'follow',
-  });
+  // Apps Script 使用 GET + redirect:follow 最穩定
+  // token 透過 HTTPS 傳輸（加密），且為短效 token，安全性足夠
+  const url = new URL(SCRIPT_URL);
+  url.searchParams.set('action', action);
+  if (idToken) url.searchParams.set('token', idToken);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
+  const res = await fetch(url.toString(), { redirect:'follow' });
   if (!res.ok) throw new Error('HTTP '+res.status);
   return res.json();
 }
