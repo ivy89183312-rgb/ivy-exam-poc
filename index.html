@@ -384,11 +384,10 @@ let historyData = [];
 
 // ── API ──────────────────────────────────────────────
 async function api(action, params={}) {
-  // Apps Script 使用 GET + redirect:follow 最穩定
-  // token 透過 HTTPS 傳輸（加密），且為短效 token，安全性足夠
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
-  if (idToken) url.searchParams.set('token', idToken);
+  if (idToken)    url.searchParams.set('token', idToken);
+  if (userEmail)  url.searchParams.set('email', userEmail); // 每次自動帶 email
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
   const res = await fetch(url.toString(), { redirect:'follow' });
   if (!res.ok) throw new Error('HTTP '+res.status);
