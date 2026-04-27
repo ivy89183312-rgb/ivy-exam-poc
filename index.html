@@ -376,7 +376,8 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwq-DlQxG7pQ-GwAowXBcWve5opsXJA_nJrsRZU-r0RtuPCw5Yhb01FJnfpYWIAewTiHA/exec';
 
 let userEmail   = '';
-let idToken     = '';   // Google ID Token，用於後端驗證身份
+let idToken     = '';   // Google ID Token
+let userSub     = '';   // Google 用戶唯一識別碼，用於 session 驗證
 let currentTest = null;
 let quizData    = null;
 let answers     = {};
@@ -386,8 +387,9 @@ let historyData = [];
 async function api(action, params={}) {
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
-  if (idToken)    url.searchParams.set('token', idToken);
-  if (userEmail)  url.searchParams.set('email', userEmail); // 每次自動帶 email
+  if (idToken)   url.searchParams.set('token', idToken);   // 僅 createSession 需要
+  if (userEmail) url.searchParams.set('email', userEmail);
+  if (userSub)   url.searchParams.set('sub', userSub);     // session 驗證用
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
   const res = await fetch(url.toString(), { redirect:'follow' });
   if (!res.ok) throw new Error('HTTP '+res.status);
@@ -406,8 +408,9 @@ function hideLoading() { document.getElementById('loading-overlay').classList.ad
 function onGoogleSignIn(response) {
   const payload = parseJWT(response.credential);
   if (!payload?.email) { alert('登入失敗，請重試'); return; }
-  userEmail  = payload.email;
-  idToken    = response.credential; // 保存 token 用於後端驗證
+  userEmail = payload.email;
+  idToken   = response.credential;
+  userSub   = payload.sub || ''; // Google 用戶唯一 ID
   showLoading('正在驗證身份，請稍候…');
   afterLogin();
 }
@@ -422,6 +425,10 @@ function parseJWT(token) {
 async function afterLogin() {
   try {
     await api('registerUser', { email: userEmail });
+    // 建立 session（把 sub 存進 Sheet，後續 API 呼叫用 sub 驗證）
+    const sessionRes = await api('createSession', { email: userEmail });
+    if (sessionRes.error) throw new Error(sessionRes.error);
+
     const data = await api('checkAccess', { email: userEmail });
     hideLoading();
     if (data.hasAccess) { showTests(); }
@@ -440,7 +447,7 @@ async function afterLogin() {
 function logout() {
   if (!confirm('確定登出？')) return;
   google.accounts.id.disableAutoSelect();
-  userEmail=''; idToken=''; answers={}; quizData=null; currentTest=null; historyData=[];
+  userEmail=''; idToken=''; userSub=''; answers={}; quizData=null; currentTest=null; historyData=[];
   showView('login');
 }
 
