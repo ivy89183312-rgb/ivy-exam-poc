@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://script.google.com https://oauth2.googleapis.com; img-src 'self' https://drive.google.com https://lh3.googleusercontent.com https://ivy89183312-rgb.github.io data:; font-src https://fonts.gstatic.com; frame-ancestors 'none';">
 <title>Ivy 模考衝刺 PLUS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -384,12 +385,14 @@ let historyData = [];
 
 // ── API ──────────────────────────────────────────────
 async function api(action, params={}) {
-  const url = new URL(SCRIPT_URL);
-  url.searchParams.set('action', action);
-  // 帶上 token 讓後端驗證身份（registerUser/checkAccess 不需要也無妨）
-  if (idToken) url.searchParams.set('token', idToken);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
-  const res = await fetch(url.toString(), { redirect:'follow' });
+  // 改用 POST，token 和參數放在 body，不暴露在 URL
+  const body = JSON.stringify({ action, token: idToken, ...params });
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // Apps Script 需要 text/plain 才能讀 postData
+    body,
+    redirect: 'follow',
+  });
   if (!res.ok) throw new Error('HTTP '+res.status);
   return res.json();
 }
@@ -508,14 +511,24 @@ async function showTests() {
       const attBadge = att
         ? `<div style="margin-top:10px"><span class="attempted-tag">✅ 已考過 ${att.count} 次｜最高 ${att.maxScore}/${att.total} 分</span></div>`
         : '';
-      return `<div class="test-card" onclick="startTest('${tid}','${esc(t.test_name)}','${type}')">
-        <div class="test-badge">${type}</div>
-        <h3>${esc(t.test_name)||'試卷 '+tid}</h3>
-        <div class="test-id">${tid}</div>
+      // 使用 data-* 屬性，避免 inline onclick XSS 風險
+      return `<div class="test-card"
+        data-tid="${esc(tid)}"
+        data-name="${esc(t.test_name)}"
+        data-type="${esc(type)}">
+        <div class="test-badge">${esc(type)}</div>
+        <h3>${esc(t.test_name)||'試卷 '+esc(tid)}</h3>
+        <div class="test-id">${esc(tid)}</div>
         ${attBadge}
         <div class="test-arrow">→</div>
       </div>`;
     }).join('');
+    // 統一綁定點擊事件，不用 inline onclick
+    grid.querySelectorAll('.test-card').forEach(card => {
+      card.addEventListener('click', () => {
+        startTest(card.dataset.tid, card.dataset.name, card.dataset.type);
+      });
+    });
   } catch(e) {
     grid.innerHTML='<p style="color:var(--emphasis);padding:40px">載入失敗，請重新整理</p>';
   }
@@ -793,14 +806,11 @@ function getOpts(sec) {
 function driveUrl(url) {
   if (!url) return '';
   const s = String(url).trim();
-  // Already a direct image URL
+  // 只允許 https:// 開頭，防止 javascript: URI 注入
+  if (!s.startsWith('https://')) return '';
   if (s.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return s;
-  // GitHub Pages hosted
-  if (s.startsWith('https://')) {
-    const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || s.match(/id=([a-zA-Z0-9_-]{10,})/);
-    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`;
-    return s;
-  }
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || s.match(/id=([a-zA-Z0-9_-]{10,})/);
+  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`;
   return s;
 }
 
@@ -923,7 +933,12 @@ function backToTests() {
 // ── Utils ─────────────────────────────────────────────
 function norm(val) { return String(val||'').trim().replace(/\.0+$/,''); }
 function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#x27;');
 }
 
 showView('login');
