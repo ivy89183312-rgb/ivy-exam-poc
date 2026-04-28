@@ -391,7 +391,7 @@ async function api(action, params={}) {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' }, // text/plain 不觸發 preflight，Apps Script 照樣可 JSON.parse
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
