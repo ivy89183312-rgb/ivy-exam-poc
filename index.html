@@ -385,9 +385,22 @@ let historyData = [];
 
 // ── API ──────────────────────────────────────────────
 async function api(action, params={}) {
+  // createSession 用 POST 傳送 token（避免 token 出現在 URL / log 裡）
+  if (action === 'createSession') {
+    const body = Object.assign({ action, email: userEmail, token: idToken }, params);
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  // 其他請求用 GET，token 不再帶入 URL
   const url = new URL(SCRIPT_URL);
   url.searchParams.set('action', action);
-  if (idToken)   url.searchParams.set('token', idToken);   // 僅 createSession 需要
   if (userEmail) url.searchParams.set('email', userEmail);
   if (userSub)   url.searchParams.set('sub', userSub);     // session 驗證用
   Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
