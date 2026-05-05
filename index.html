@@ -394,9 +394,13 @@ async function api(action, params = {}) {
     ...params,
   };
 
+  // Content-Type 必須用 text/plain，不能用 application/json
+  // 原因：application/json 會觸發 CORS preflight（OPTIONS），
+  // 而 Apps Script 不處理 OPTIONS → 405 錯誤
+  // text/plain 屬於「simple request」，瀏覽器直接送出，不發 preflight
   const res = await fetch(SCRIPT_URL, {
     method : 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body   : JSON.stringify(body),
     redirect: 'follow',
   });
