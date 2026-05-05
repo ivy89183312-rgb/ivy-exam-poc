@@ -147,7 +147,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 /* Inline blanks */
 .blank-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:var(--accent);color:var(--text);border-radius:50%;font-size:.72rem;font-weight:900;font-family:'Nunito',sans-serif;margin:0 3px;vertical-align:middle}
 
-/* Inline dropdown (type 2, 3, 4) */
+/* Inline dropdown */
 .blank-select{
   padding:6px 10px;border:2px solid var(--primary-light);border-radius:8px;
   background:#fff;font-size:.86rem;color:var(--text);cursor:pointer;
@@ -155,8 +155,6 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
   max-width:100%;vertical-align:middle;
 }
 .blank-select:focus{outline:none;border-color:var(--primary)}
-
-/* Para select: full sentence display */
 .para-select{
   min-width:200px;max-width:calc(100% - 40px);
   white-space:normal;height:auto;
@@ -167,7 +165,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
   .blank-select{font-size:.82rem}
 }
 
-/* Text input (type 6) */
+/* Text input */
 .blank-input{padding:5px 12px;border:2px solid var(--primary-light);border-radius:8px;background:#fff;font-size:.9rem;color:var(--text);width:160px;margin:0 3px;font-family:'Noto Sans TC',sans-serif}
 .blank-input:focus{outline:none;border-color:var(--primary)}
 
@@ -187,7 +185,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 .opt-label input[type="radio"]{display:none}
 .opt-key{font-family:'Nunito',sans-serif;font-weight:800;color:var(--primary);width:20px;flex-shrink:0;margin-top:1px}
 
-/* Section question (type 6) */
+/* Section question */
 .section-question{padding:20px 26px;font-size:.95rem;line-height:2.3;background:var(--bg);border-top:2px solid var(--border)}
 .sq-label{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;font-family:'Nunito',sans-serif}
 
@@ -375,25 +373,34 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwq-DlQxG7pQ-GwAowXBcWve5opsXJA_nJrsRZU-r0RtuPCw5Yhb01FJnfpYWIAewTiHA/exec';
 
-let userEmail   = '';
-let idToken     = '';   // Google ID Token
-let userSub     = '';   // Google 用戶唯一識別碼，用於 session 驗證
-let currentTest = null;
-let quizData    = null;
-let answers     = {};
-let historyData = [];
+let userEmail    = '';
+let idToken      = '';   // Google ID Token（登入時暫存，createSession 後不再使用）
+let sessionToken = '';   // 後端發的隨機 UUID，每次請求帶入（取代舊版的 userSub）
+let currentTest  = null;
+let quizData     = null;
+let answers      = {};
+let historyData  = [];
 
-// ── API ──────────────────────────────────────────────
-async function api(action, params={}) {
-  const url = new URL(SCRIPT_URL);
-  url.searchParams.set('action', action);
-  if (userEmail) url.searchParams.set('email', userEmail);
-  if (userSub)   url.searchParams.set('sub', userSub);
-  // token 只在 createSession 時帶入，其他 action 不傳
-  if (action === 'createSession' && idToken) url.searchParams.set('token', idToken);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, String(v)));
-  const res = await fetch(url.toString(), { redirect:'follow' });
-  if (!res.ok) throw new Error('HTTP '+res.status);
+// ── API（v2：全部改成 POST + JSON body）───────────────────
+// 改動原因：GET 請求的所有參數（含 token）會出現在 URL、
+// 瀏覽器歷史、伺服器 log，POST body 不會
+async function api(action, params = {}) {
+  const body = {
+    action,
+    ...(userEmail    && { email: userEmail }),
+    ...(sessionToken && { sessionToken }),
+    // idToken 只在 createSession 時帶入，其他 action 完全不傳
+    ...(action === 'createSession' && idToken && { token: idToken }),
+    ...params,
+  };
+
+  const res = await fetch(SCRIPT_URL, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify(body),
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
@@ -411,7 +418,7 @@ function onGoogleSignIn(response) {
   if (!payload?.email) { alert('登入失敗，請重試'); return; }
   userEmail = payload.email;
   idToken   = response.credential;
-  userSub   = payload.sub || ''; // Google 用戶唯一 ID
+  // 注意：不儲存 sub，後端自行從 token 取得
   showLoading('正在驗證身份，請稍候…');
   afterLogin();
 }
@@ -419,28 +426,36 @@ function onGoogleSignIn(response) {
 function parseJWT(token) {
   try {
     const b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
-    return JSON.parse(decodeURIComponent(atob(b64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+    return JSON.parse(decodeURIComponent(
+      atob(b64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    ));
   } catch { return null; }
 }
 
 async function afterLogin() {
   try {
-    await api('registerUser', { email: userEmail });
-    // 建立 session（把 sub 存進 Sheet，後續 API 呼叫用 sub 驗證）
-    const sessionRes = await api('createSession', { email: userEmail });
-    if (sessionRes.error) throw new Error(sessionRes.error);
+    await api('registerUser');
 
-    const data = await api('checkAccess', { email: userEmail });
+    // createSession：後端驗證 Google token，回傳隨機 sessionToken
+    const sessionRes = await api('createSession');
+    if (sessionRes.error) throw new Error(sessionRes.error);
+    sessionToken = sessionRes.sessionToken; // 存起來，後續所有請求使用
+
+    // idToken 驗證完成後不再需要，清除
+    idToken = '';
+
+    const data = await api('checkAccess');
     hideLoading();
-    if (data.hasAccess) { showTests(); }
-    else {
+    if (data.hasAccess) {
+      showTests();
+    } else {
       showView('activate');
       document.getElementById('act-email').textContent = userEmail;
     }
   } catch(e) {
     hideLoading();
     const errDiv = document.getElementById('login-err');
-    if (errDiv) errDiv.textContent = '❌ 連線失敗：'+e.message+'，請重新整理頁面';
+    if (errDiv) errDiv.textContent = '❌ 連線失敗：' + e.message + '，請重新整理頁面';
     console.error('afterLogin error:', e);
   }
 }
@@ -448,23 +463,25 @@ async function afterLogin() {
 function logout() {
   if (!confirm('確定登出？')) return;
   google.accounts.id.disableAutoSelect();
-  userEmail=''; idToken=''; userSub=''; answers={}; quizData=null; currentTest=null; historyData=[];
+  // 清除所有狀態
+  userEmail = ''; idToken = ''; sessionToken = '';
+  answers = {}; quizData = null; currentTest = null; historyData = [];
   showView('login');
 }
 
 // ── Views ─────────────────────────────────────────────
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-'+id).classList.add('active');
-  window.scrollTo(0,0);
+  document.getElementById('view-' + id).classList.add('active');
+  window.scrollTo(0, 0);
 }
 
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-'+tab).classList.add('active');
-  if (tab==='history') renderHistory();
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'history') renderHistory();
 }
 
 // ── Activate ──────────────────────────────────────────
@@ -472,18 +489,20 @@ async function submitCode() {
   const code = document.getElementById('code-input').value.trim();
   const btn  = document.getElementById('code-btn');
   const msg  = document.getElementById('code-msg');
-  if (!code) { msg.innerHTML='<div class="msg-error">請輸入序號</div>'; return; }
-  btn.disabled=true; btn.textContent='驗證中…'; msg.innerHTML='';
+  if (!code) { msg.innerHTML = '<div class="msg-error">請輸入序號</div>'; return; }
+  btn.disabled = true; btn.textContent = '驗證中…'; msg.innerHTML = '';
   try {
-    const data = await api('activateCode', { email:userEmail, code });
-    if (data.status==='activated') {
-      msg.innerHTML='<div class="msg-success">✅ 序號兌換成功！正在進入…</div>';
+    const data = await api('activateCode', { code });
+    if (data.status === 'activated') {
+      msg.innerHTML = '<div class="msg-success">✅ 序號兌換成功！正在進入…</div>';
       setTimeout(showTests, 1200);
     } else {
-      msg.innerHTML=`<div class="msg-error">${data.error||'兌換失敗'}</div>`;
+      msg.innerHTML = `<div class="msg-error">${data.error || '兌換失敗'}</div>`;
     }
-  } catch { msg.innerHTML='<div class="msg-error">連線失敗，請稍後再試</div>'; }
-  btn.disabled=false; btn.textContent='兌換序號';
+  } catch {
+    msg.innerHTML = '<div class="msg-error">連線失敗，請稍後再試</div>';
+  }
+  btn.disabled = false; btn.textContent = '兌換序號';
 }
 
 // ── Tests List ────────────────────────────────────────
@@ -495,47 +514,48 @@ async function showTests() {
   try {
     const [tests, history] = await Promise.all([
       api('getTests'),
-      api('getHistory', { email:userEmail }),
+      api('getHistory'),
     ]);
     historyData = Array.isArray(history) ? history : [];
 
     const attempted = {};
     historyData.forEach(h => {
       const tid = norm(h.test_id);
-      if (!attempted[tid]) attempted[tid] = { count:0, maxScore:-1, total:Number(h.total)||0 };
+      if (!attempted[tid]) attempted[tid] = { count: 0, maxScore: -1, total: Number(h.total) || 0 };
       attempted[tid].count++;
-      const s = Number(h.score)||0;
+      const s = Number(h.score) || 0;
       if (s > attempted[tid].maxScore) attempted[tid].maxScore = s;
     });
 
-    if (!tests?.length) { grid.innerHTML='<p style="color:var(--text-2);padding:40px">目前尚無試卷</p>'; return; }
+    if (!tests?.length) {
+      grid.innerHTML = '<p style="color:var(--text-2);padding:40px">目前尚無試卷</p>';
+      return;
+    }
     grid.innerHTML = tests.map(t => {
       const tid  = norm(t.test_id);
-      const type = String(t.test_type)==='w' ? '筆試' : '聽力';
+      const type = String(t.test_type) === 'w' ? '筆試' : '聽力';
       const att  = attempted[tid];
       const attBadge = att
         ? `<div style="margin-top:10px"><span class="attempted-tag">✅ 已考過 ${att.count} 次｜最高 ${att.maxScore}/${att.total} 分</span></div>`
         : '';
-      // 使用 data-* 屬性，避免 inline onclick XSS 風險
       return `<div class="test-card"
         data-tid="${esc(tid)}"
         data-name="${esc(t.test_name)}"
         data-type="${esc(type)}">
         <div class="test-badge">${esc(type)}</div>
-        <h3>${esc(t.test_name)||'試卷 '+esc(tid)}</h3>
+        <h3>${esc(t.test_name) || '試卷 ' + esc(tid)}</h3>
         <div class="test-id">${esc(tid)}</div>
         ${attBadge}
         <div class="test-arrow">→</div>
       </div>`;
     }).join('');
-    // 統一綁定點擊事件，不用 inline onclick
     grid.querySelectorAll('.test-card').forEach(card => {
       card.addEventListener('click', () => {
         startTest(card.dataset.tid, card.dataset.name, card.dataset.type);
       });
     });
   } catch(e) {
-    grid.innerHTML='<p style="color:var(--emphasis);padding:40px">載入失敗，請重新整理</p>';
+    grid.innerHTML = '<p style="color:var(--emphasis);padding:40px">載入失敗，請重新整理</p>';
   }
 }
 
@@ -543,12 +563,13 @@ async function showTests() {
 function renderHistory() {
   const el = document.getElementById('history-list');
   if (!historyData.length) {
-    el.innerHTML='<p style="color:var(--text-2);padding:40px;text-align:center">尚無考試紀錄</p>'; return;
+    el.innerHTML = '<p style="color:var(--text-2);padding:40px;text-align:center">尚無考試紀錄</p>';
+    return;
   }
-  el.innerHTML = historyData.map((h,idx) => {
-    const score = Number(h.score)||0, total = Number(h.total)||0;
-    const pct   = total ? Math.round(score/total*100) : 0;
-    const ts    = String(h.timestamp||'').slice(0,16);
+  el.innerHTML = historyData.map((h, idx) => {
+    const score = Number(h.score) || 0, total = Number(h.total) || 0;
+    const pct   = total ? Math.round(score / total * 100) : 0;
+    const ts    = String(h.timestamp || '').slice(0, 16);
     return `<div class="history-card">
       <div class="history-card-top" onclick="toggleHistoryReview(${idx})">
         <div>
@@ -569,30 +590,30 @@ function renderHistory() {
 }
 
 function toggleHistoryReview(idx) {
-  document.getElementById('hr-'+idx).classList.toggle('open');
+  document.getElementById('hr-' + idx).classList.toggle('open');
 }
 
 function renderHistoryReview(reviewJson) {
-  let items=[];
-  try { items=JSON.parse(reviewJson||'[]'); } catch { return '<p style="color:var(--text-2)">無解析資料</p>'; }
+  let items = [];
+  try { items = JSON.parse(reviewJson || '[]'); } catch { return '<p style="color:var(--text-2)">無解析資料</p>'; }
   if (!items.length) return '<p style="color:var(--text-2)">無解析資料</p>';
-  return '<div class="review-grid">'+items.map(r => {
-    const cls=!r.u?'skipped':r.ok?'correct':'wrong';
-    const icon=!r.u?'⏭':r.ok?'✅':'❌';
+  return '<div class="review-grid">' + items.map(r => {
+    const cls  = !r.u ? 'skipped' : r.ok ? 'correct' : 'wrong';
+    const icon = !r.u ? '⏭' : r.ok ? '✅' : '❌';
     return `<div class="review-row ${cls}">
       <div class="rr-q">第 ${r.n} 題（${r.p} 分）</div>
-      <div class="rr-ans ${r.ok?'rr-correct':'rr-wrong'}">你的答案：${r.u||'—'} ${icon}</div>
-      ${!r.ok?`<div class="rr-correct-hint">✔ 正確答案：${r.c}</div>`:''}
+      <div class="rr-ans ${r.ok ? 'rr-correct' : 'rr-wrong'}">你的答案：${r.u || '—'} ${icon}</div>
+      ${!r.ok ? `<div class="rr-correct-hint">✔ 正確答案：${r.c}</div>` : ''}
     </div>`;
-  }).join('')+'</div>';
+  }).join('') + '</div>';
 }
 
 // ── Quiz ──────────────────────────────────────────────
 async function startTest(testId, testName, typeLabel) {
   answers = {};
-  currentTest = { test_id:testId, test_name:testName, type_label:typeLabel };
+  currentTest = { test_id: testId, test_name: testName, type_label: typeLabel };
   showView('quiz');
-  document.getElementById('quiz-title').textContent = testName||'試卷 '+testId;
+  document.getElementById('quiz-title').textContent = testName || '試卷 ' + testId;
   document.getElementById('quiz-sub').textContent   = typeLabel;
   document.getElementById('quiz-body').innerHTML    = '<div class="loading-state"><div class="spinner"></div><span>載入題目中…</span></div>';
   try {
@@ -628,11 +649,11 @@ function renderQuiz() {
       const sec   = sectionMap[secId] || {};
       const start = qNum;
       switch(type) {
-        case '2': blocks.push(renderCloze(sec, secQs, start)); break;
-        case '3': blocks.push(renderWordFill(sec, secQs, start)); break;
-        case '4': blocks.push(renderParaSelect(sec, secQs, start)); break;
-        case '5': blocks.push(renderReading(sec, secQs, start)); break;
-        case '6': blocks.push(renderMixed(sec, secQs, start)); break;
+        case '2': blocks.push(renderCloze(sec, secQs, start));     break;
+        case '3': blocks.push(renderWordFill(sec, secQs, start));  break;
+        case '4': blocks.push(renderParaSelect(sec, secQs, start));break;
+        case '5': blocks.push(renderReading(sec, secQs, start));   break;
+        case '6': blocks.push(renderMixed(sec, secQs, start));     break;
         default:  blocks.push(renderReading(sec, secQs, start));
       }
       qNum += secQs.length;
@@ -655,14 +676,14 @@ function renderType1(q, num) {
   </div>`;
 }
 
-// ── Type 2: 綜合測驗（文章內嵌下拉選單）─────────────────
+// ── Type 2: 綜合測驗 ──────────────────────────────────
 function renderCloze(sec, qs, startNum) {
   let idx = 0;
-  const passage = esc(sec.section_content||'').replace(/\n/g,'<br>').replace(/##/g, () => {
+  const passage = esc(sec.section_content || '').replace(/\n/g, '<br>').replace(/##/g, () => {
     if (idx >= qs.length) return '<span class="blank-num">?</span>';
-    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum+idx; idx++;
+    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum + idx; idx++;
     const keys = ['option1_A','option2_B','option3_C','option4_D'];
-    const optHTML = ['A','B','C','D'].map((l,i) => {
+    const optHTML = ['A','B','C','D'].map((l, i) => {
       const t = q[keys[i]]; return t ? `<option value="${l}">${l}.  ${esc(String(t))}</option>` : '';
     }).join('');
     return `<span class="blank-num">${num}</span><select class="blank-select" id="qs_${qid}" onchange="selectDrop('${qid}',this.value)"><option value="">—選擇—</option>${optHTML}</select>`;
@@ -671,7 +692,7 @@ function renderCloze(sec, qs, startNum) {
     <div class="section-header">
       <span class="type-badge">綜合測驗</span>
       <span class="section-label">選出最適合填入空格的答案</span>
-      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
+      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
     </div>
     <div class="section-passage">${passage}</div>
   </div>`;
@@ -680,47 +701,46 @@ function renderCloze(sec, qs, startNum) {
 // ── Type 3: 文意選填 ──────────────────────────────────
 function renderWordFill(sec, qs, startNum) {
   const opts = getOpts(sec);
-  const wbHTML = `<div class="wordbank"><div class="wb-title">Word Bank</div><div class="wb-items">${opts.map(o=>`<div class="wb-item"><b>${o.letter}</b>${esc(o.text)}</div>`).join('')}</div></div>`;
+  const wbHTML = `<div class="wordbank"><div class="wb-title">Word Bank</div><div class="wb-items">${opts.map(o => `<div class="wb-item"><b>${o.letter}</b>${esc(o.text)}</div>`).join('')}</div></div>`;
   let idx = 0;
-  const passage = esc(sec.section_content||'').replace(/\n/g,'<br>').replace(/##/g, () => {
+  const passage = esc(sec.section_content || '').replace(/\n/g, '<br>').replace(/##/g, () => {
     if (idx >= qs.length) return '<span class="blank-num">?</span>';
-    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum+idx; idx++;
-    const optHTML = opts.map(o=>`<option value="${o.letter}">${o.letter}.  ${esc(o.text.slice(0,50))}</option>`).join('');
+    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum + idx; idx++;
+    const optHTML = opts.map(o => `<option value="${o.letter}">${o.letter}.  ${esc(o.text.slice(0, 50))}</option>`).join('');
     return `<span class="blank-num">${num}</span><select class="blank-select" id="qs_${qid}" onchange="selectDrop('${qid}',this.value)"><option value="">—</option>${optHTML}</select>`;
   });
   return `<div class="section-block">
     <div class="section-header">
       <span class="type-badge">文意選填</span>
       <span class="section-label">從選項中選出最適合的字詞</span>
-      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
+      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
     </div>
     ${wbHTML}
     <div class="section-passage">${passage}</div>
   </div>`;
 }
 
-// ── Type 4: 篇章結構（下拉選句）──────────────────────────
+// ── Type 4: 篇章結構 ──────────────────────────────────
 function renderParaSelect(sec, qs, startNum) {
   const opts = getOpts(sec);
-  // Reference sentence bank
   const bankHTML = `<div class="wordbank">
     <div class="wb-title">選項句子（可重複選用）</div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-      ${opts.map(o=>`<div class="wb-item" style="width:100%"><b style="margin-right:8px">${o.letter}</b>${esc(o.text)}</div>`).join('')}
+      ${opts.map(o => `<div class="wb-item" style="width:100%"><b style="margin-right:8px">${o.letter}</b>${esc(o.text)}</div>`).join('')}
     </div>
   </div>`;
   let idx = 0;
-  const passage = esc(sec.section_content||'').replace(/\n/g,'<br>').replace(/##/g, () => {
+  const passage = esc(sec.section_content || '').replace(/\n/g, '<br>').replace(/##/g, () => {
     if (idx >= qs.length) return '<span class="blank-num">?</span>';
-    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum+idx; idx++;
-    const optHTML = opts.map(o=>`<option value="${o.letter}">${o.letter}.  ${esc(o.text)}</option>`).join('');
+    const q = qs[idx]; const qid = norm(q.question_id); const num = startNum + idx; idx++;
+    const optHTML = opts.map(o => `<option value="${o.letter}">${o.letter}.  ${esc(o.text)}</option>`).join('');
     return `<span class="blank-num">${num}</span><select class="blank-select para-select" id="qs_${qid}" onchange="selectDrop('${qid}',this.value)"><option value="">—選擇句子—</option>${optHTML}</select>`;
   });
   return `<div class="section-block">
     <div class="section-header">
       <span class="type-badge">篇章結構</span>
       <span class="section-label">選出最適合填入空格的句子</span>
-      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
+      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
     </div>
     ${bankHTML}
     <div class="section-passage">${passage}</div>
@@ -730,35 +750,33 @@ function renderParaSelect(sec, qs, startNum) {
 // ── Type 5: 閱讀測驗 ──────────────────────────────────
 function renderReading(sec, qs, startNum) {
   const imgHTML = sec.pic ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.parentElement.style.display='none'"></div>` : '';
-  const passage = esc(sec.section_content||'').replace(/\n/g,'<br>');
+  const passage = esc(sec.section_content || '').replace(/\n/g, '<br>');
   return `<div class="section-block">
     <div class="section-header">
       <span class="type-badge">閱讀測驗</span>
       <span class="section-label">閱讀文章後回答問題</span>
-      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
+      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
     </div>
     ${imgHTML}
     <div class="section-passage">${passage}</div>
-    <div class="questions-list">${qs.map((q,i)=>renderMCQ(q,startNum+i)).join('')}</div>
+    <div class="questions-list">${qs.map((q, i) => renderMCQ(q, startNum + i)).join('')}</div>
   </div>`;
 }
 
-// ── Type 6: 混合題（文字在圖片上方）──────────────────────
+// ── Type 6: 混合題 ────────────────────────────────────
 function renderMixed(sec, qs, startNum) {
-  // 文字在前，圖片在後
-  const passage = esc(sec.section_content||'').replace(/\n/g,'<br>');
+  const passage = esc(sec.section_content || '').replace(/\n/g, '<br>');
   const imgHTML = sec.pic ? `<div class="section-image"><img src="${driveUrl(sec.pic)}" alt="題目圖片" onerror="this.parentElement.style.display='none'"></div>` : '';
-
   let bodyHTML = '';
-  if ((sec.section_question||'').trim().length > 0) {
+  if ((sec.section_question || '').trim().length > 0) {
     let idx = 0;
-    const sqContent = esc(sec.section_question).replace(/\n/g,'<br>').replace(/##/g, () => {
+    const sqContent = esc(sec.section_question).replace(/\n/g, '<br>').replace(/##/g, () => {
       if (idx >= qs.length) return '____';
-      const q = qs[idx]; const qid = norm(q.question_id); const num = startNum+idx; idx++;
+      const q = qs[idx]; const qid = norm(q.question_id); const num = startNum + idx; idx++;
       const hasOpts = q.option1_A || q.option2_B;
       if (hasOpts) {
         const keys = ['option1_A','option2_B','option3_C','option4_D'];
-        const optHTML = ['A','B','C','D'].map((l,i) => {
+        const optHTML = ['A','B','C','D'].map((l, i) => {
           const t = q[keys[i]]; return t ? `<option value="${l}">${l}.  ${esc(String(t))}</option>` : '';
         }).join('');
         return `<span class="blank-num">${num}</span><select class="blank-select" onchange="selectDrop('${qid}',this.value)"><option value="">—</option>${optHTML}</select>`;
@@ -767,14 +785,13 @@ function renderMixed(sec, qs, startNum) {
     });
     bodyHTML = `<div class="section-question"><div class="sq-label">作答區</div>${sqContent}</div>`;
   } else {
-    bodyHTML = `<div class="questions-list">${qs.map((q,i)=>renderMCQ(q,startNum+i)).join('')}</div>`;
+    bodyHTML = `<div class="questions-list">${qs.map((q, i) => renderMCQ(q, startNum + i)).join('')}</div>`;
   }
-
   return `<div class="section-block">
     <div class="section-header">
       <span class="type-badge">混合題</span>
       <span class="section-label">閱讀文章後作答</span>
-      <span class="section-range">${startNum}–${startNum+qs.length-1}</span>
+      <span class="section-range">${startNum}–${startNum + qs.length - 1}</span>
     </div>
     <div class="section-passage">${passage}</div>
     ${imgHTML}
@@ -786,7 +803,7 @@ function renderMixed(sec, qs, startNum) {
 function renderMCQ(q, num) {
   const qid  = norm(q.question_id);
   const keys = ['option1_A','option2_B','option3_C','option4_D'];
-  const opts = ['A','B','C','D'].map((l,i) => {
+  const opts = ['A','B','C','D'].map((l, i) => {
     const t = q[keys[i]]; if (!t) return '';
     return `<label class="opt-label" onclick="selectMCQ('${qid}','${l}',this)">
       <input type="radio" name="q_${qid}" value="${l}">
@@ -796,7 +813,7 @@ function renderMCQ(q, num) {
   return `<div class="question-item" id="qi_${qid}">
     <div class="q-header">
       <span class="q-num" id="qn_${qid}">${num}</span>
-      <span class="q-text">${esc(q.question||'')}</span>
+      <span class="q-text">${esc(q.question || '')}</span>
     </div>
     <div class="options-list">${opts}</div>
   </div>`;
@@ -804,14 +821,13 @@ function renderMCQ(q, num) {
 
 function getOpts(sec) {
   const letters = ['A','B','C','D','E','F','G','H','I','J'];
-  const keys = ['option1_A','option2_B','option3_C','option4_D','option5_E','option6_F','option7_G','option8_H','option9_I','option10_J'];
-  return keys.map((k,i) => ({ letter:letters[i], text:String(sec[k]||'') })).filter(o => o.text);
+  const keys    = ['option1_A','option2_B','option3_C','option4_D','option5_E','option6_F','option7_G','option8_H','option9_I','option10_J'];
+  return keys.map((k, i) => ({ letter: letters[i], text: String(sec[k] || '') })).filter(o => o.text);
 }
 
 function driveUrl(url) {
   if (!url) return '';
   const s = String(url).trim();
-  // 只允許 https:// 開頭，防止 javascript: URI 注入
   if (!s.startsWith('https://')) return '';
   if (s.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return s;
   const m = s.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || s.match(/id=([a-zA-Z0-9_-]{10,})/);
@@ -824,8 +840,8 @@ function selectMCQ(qid, letter, labelEl) {
   answers[qid] = letter;
   labelEl.closest('.options-list').querySelectorAll('.opt-label').forEach(l => l.classList.remove('selected'));
   labelEl.classList.add('selected');
-  document.getElementById('qi_'+qid)?.classList.add('answered');
-  document.getElementById('qn_'+qid)?.classList.add('answered');
+  document.getElementById('qi_' + qid)?.classList.add('answered');
+  document.getElementById('qn_' + qid)?.classList.add('answered');
   updateProgress();
 }
 
@@ -835,33 +851,32 @@ function selectDrop(qid, value) {
 }
 
 function selectInput(qid, value) {
-  const v = String(value||'').trim();
+  const v = String(value || '').trim();
   if (v) answers[qid] = v; else delete answers[qid];
   updateProgress();
 }
 
-// ── Progress（以 quizData.questions 為基準計算）──────────
+// ── Progress ──────────────────────────────────────────
 function updateProgress() {
   if (!quizData) return;
-  const total = quizData.questions.length;
-  // 精確計算：以每道題的 question_id 查 answers
+  const total    = quizData.questions.length;
   const answered = quizData.questions.filter(q => {
     const val = answers[norm(q.question_id)];
     return val !== undefined && String(val).trim() !== '';
   }).length;
-  const pct = total ? Math.round(answered/total*100) : 0;
-  document.getElementById('ans-count').textContent  = answered;
+  const pct = total ? Math.round(answered / total * 100) : 0;
+  document.getElementById('ans-count').textContent   = answered;
   document.getElementById('total-count').textContent = total;
-  document.getElementById('prog-bar').style.width   = pct+'%';
-  document.getElementById('prog-txt').textContent   = `${answered}/${total}`;
+  document.getElementById('prog-bar').style.width    = pct + '%';
+  document.getElementById('prog-txt').textContent    = `${answered}/${total}`;
   const btn = document.getElementById('submit-btn');
-  if (answered===total) btn.classList.add('ready'); else btn.classList.remove('ready');
+  if (answered === total) btn.classList.add('ready'); else btn.classList.remove('ready');
 }
 
 // ── Submit & Score ────────────────────────────────────
 function confirmSubmit() {
-  const total    = quizData?.questions?.length || 0;
-  const answered = quizData.questions.filter(q => {
+  const total      = quizData?.questions?.length || 0;
+  const answered   = quizData.questions.filter(q => {
     const val = answers[norm(q.question_id)];
     return val !== undefined && String(val).trim() !== '';
   }).length;
@@ -872,51 +887,53 @@ function confirmSubmit() {
 
 async function calcAndShow() {
   const { questions } = quizData;
-  let score=0, total=0;
-  const review=[];
-  let qNum=1;
+  let score = 0, total = 0;
+  const review = [];
+  let qNum = 1;
 
   questions.forEach(q => {
     const qid     = norm(q.question_id);
-    const correct = String(q.answer||'').trim();
-    const user    = String(answers[qid]||'').trim();
-    const pts     = Number(q.score)||0;
+    const correct = String(q.answer || '').trim();
+    const user    = String(answers[qid] || '').trim();
+    const pts     = Number(q.score) || 0;
     total += pts;
     const ok = user.toLowerCase() === correct.toLowerCase();
     if (user && ok) score += pts;
-    review.push({ n:qNum++, c:correct, u:user, p:pts, ok });
+    review.push({ n: qNum++, c: correct, u: user, p: pts, ok });
   });
 
   showView('results');
-  let disp=0;
-  const step=Math.max(1,Math.ceil(score/40));
-  const timer=setInterval(() => {
-    disp=Math.min(disp+step, score);
-    document.getElementById('res-score').textContent=disp;
-    if (disp>=score) clearInterval(timer);
+  let disp = 0;
+  const step  = Math.max(1, Math.ceil(score / 40));
+  const timer = setInterval(() => {
+    disp = Math.min(disp + step, score);
+    document.getElementById('res-score').textContent = disp;
+    if (disp >= score) clearInterval(timer);
   }, 25);
   document.getElementById('res-of').textContent = `/ ${total} 分`;
-  const pct = total ? Math.round(score/total*100) : 0;
-  document.getElementById('res-pct').textContent = pct+'%';
-  setTimeout(() => { document.getElementById('res-bar').style.width=pct+'%'; }, 100);
+  const pct = total ? Math.round(score / total * 100) : 0;
+  document.getElementById('res-pct').textContent = pct + '%';
+  setTimeout(() => { document.getElementById('res-bar').style.width = pct + '%'; }, 100);
 
   document.getElementById('rev-list').innerHTML = review.map(r => {
-    const cls=!r.u?'skipped':r.ok?'correct':'wrong';
-    const icon=!r.u?'⏭ 未作答':r.ok?'✅ 正確':'❌ 錯誤';
+    const cls  = !r.u ? 'skipped' : r.ok ? 'correct' : 'wrong';
+    const icon = !r.u ? '⏭ 未作答' : r.ok ? '✅ 正確' : '❌ 錯誤';
     return `<div class="rev-item ${cls}">
       <div class="rev-q">第 ${r.n} 題（${r.p} 分）</div>
-      <div class="rev-user">你的答案：<span class="rev-ans">${r.u||'—'}</span>　${icon}</div>
-      ${!r.ok?`<div class="rev-hint">✔ 正確答案：${r.c}</div>`:''}
+      <div class="rev-user">你的答案：<span class="rev-ans">${r.u || '—'}</span>　${icon}</div>
+      ${!r.ok ? `<div class="rev-hint">✔ 正確答案：${r.c}</div>` : ''}
     </div>`;
   }).join('');
 
   try {
     await api('saveResult', {
-      email:userEmail, testId:currentTest.test_id, testName:currentTest.test_name,
-      score, total, reviewJson:JSON.stringify(review),
+      testId  : currentTest.test_id,
+      testName: currentTest.test_name,
+      score, total,
+      reviewJson: JSON.stringify(review),
     });
-    historyData = await api('getHistory', { email:userEmail });
-    if (!Array.isArray(historyData)) historyData=[];
+    historyData = await api('getHistory');
+    if (!Array.isArray(historyData)) historyData = [];
   } catch {}
 }
 
@@ -927,23 +944,19 @@ function toggleReview(btn) {
 }
 
 function backToTests() {
-  // 作答中才詢問，結果頁直接返回
   if (document.getElementById('view-quiz').classList.contains('active')) {
     if (!confirm('確定返回？目前作答進度不會儲存。')) return;
   }
-  answers={}; quizData=null;
+  answers = {}; quizData = null;
   showTests();
 }
 
 // ── Utils ─────────────────────────────────────────────
-function norm(val) { return String(val||'').trim().replace(/\.0+$/,''); }
+function norm(val) { return String(val || '').trim().replace(/\.0+$/, ''); }
 function esc(s) {
-  return String(s||'')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#x27;');
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }
 
 showView('login');
